@@ -152,3 +152,9 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
 - `npm run deploy` — builds all Docker services, increments VERSION, starts containers.
 - `https://game.you-argument.ru` — public HTTPS URL (Let's Encrypt, auto-renew needed before expiry).
 - PWA update: SW detects new version via `updatefound`, shows banner, user clicks "Обновить" → `skipWaiting` → reload.
+- `.gitignore` excludes `node_modules/` and `certs/`.
+
+### Key Decisions
+- Chose Let's Encrypt over Cloudflare Tunnel for production HTTPS.
+- Replaced VERSION-check-in-SW with native PWA `updatefound` + `skipWaiting` scheme (standard PWA pattern).
+- Two-step Nginx: HTTP-only for certbot challenge, then HTTPS with certificate.
