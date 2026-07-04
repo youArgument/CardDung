@@ -16,7 +16,7 @@ export const DUNGEON_ITEMS = {
   strength_up: { id: 'strength_up', name: 'Strength', sprite: '💪', desc: '+1 Attack', effect: 'strength', value: 1 },
   gold_pile: { id: 'gold_pile', name: 'Gold', sprite: '💰', desc: '+5 Gold', effect: 'gold', value: 5 },
   card_draw: { id: 'card_draw', name: 'Tome', sprite: '📖', desc: 'Draw 2 cards', effect: 'draw', value: 2 },
-  energy_up: { id: 'energy_up', name: 'Crystal', sprite: '💎', desc: '+1 Max Energy', effect: 'maxEnergy', value: 1 }
+  energy_up: { id: 'energy_up', name: 'Crystal', sprite: '💎', desc: '+10 Max Stamina', effect: 'stamina', value: 10 }
 };
 
 export const EXIT_CARD = { id: 'exit', name: 'Exit', sprite: '🚪', desc: 'Escape the dungeon' };

@@ -11,9 +11,7 @@ export class HandUI {
       el.className = 'hand-card';
       el.dataset.uuid = card.uuid;
 
-      const canPlay = run.player.energy >= card.cost;
-      const canPlayByStamina = run.player.stamina >= card.cost;
-      if (!canPlayByStamina) el.classList.add('unplayable');
+      if (run.player.stamina < card.cost) el.classList.add('unplayable');
 
       const total = hand.length;
       const mid = (total - 1) / 2;

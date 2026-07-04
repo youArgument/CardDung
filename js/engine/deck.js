@@ -1,6 +1,8 @@
 import { Card } from './card.js';
 
 export class Deck {
+  static MAX_HAND = 5;
+
   constructor() {
     this.cards = [];
     this.drawPile = [];
@@ -27,10 +29,9 @@ export class Deck {
   }
 
   draw(count) {
-    const MAX_HAND = 5;
     const drawn = [];
     for (let i = 0; i < count; i++) {
-      if (this.hand.length >= MAX_HAND) break;
+      if (this.hand.length >= Deck.MAX_HAND) break;
       if (this.drawPile.length === 0) {
         if (this.discardPile.length === 0) break;
         this.drawPile = [...this.discardPile];

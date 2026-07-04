@@ -60,6 +60,10 @@ html, body {
   font-size: 11px; color: #666; letter-spacing: 2px;
   margin-top: -10px;
 }
+.menu-version {
+  font-size: 9px; color: #444; letter-spacing: 1px;
+  margin-top: -8px;
+}
 .menu-stats {
   display: flex; flex-direction: column; gap: 8px;
   margin: 20px 0; padding: 16px;
@@ -458,7 +462,7 @@ html, body {
 }
 
 .damage-number {
-  position: absolute;
+  position: fixed;
   font-size: 18px; font-weight: 900;
   color: var(--accent-red);
   pointer-events: none;

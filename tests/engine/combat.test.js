@@ -9,7 +9,7 @@ function createGameState(overrides = {}) {
   ];
   return {
     run: {
-      player: { hp: 8, maxHp: 8, armor: 0, stamina: 100, energy: 5, gold: 0, strength: 0, maxEnergy: 5 },
+      player: { hp: 8, maxHp: 8, armor: 0, stamina: 100, maxStamina: 100, energy: 5, gold: 0, strength: 0, maxEnergy: 5 },
       deck: {
         hand: [],
         discardPile: [],
@@ -112,15 +112,15 @@ describe('CombatEngine.playCard', () => {
     expect(result.effects[0].type).toBe('armor');
   });
 
-  it('energy card generates energy (effect still applies)', () => {
+  it('energy card converts to stamina (energy mechanic disabled)', () => {
     const gs = createGameState();
     const card = makeCard({ power: 2, type: 'energy' });
     gs.run.deck.hand.push(card);
     gs.run.player.stamina = 10;
     CombatEngine.playCard(card, null, gs);
-    // Energy card still grants energy (card.effect), but card cost is paid in stamina.
-    // Default createGameState uses energy=5, so it becomes 7.
-    expect(gs.run.player.energy).toBe(7);
+    // Energy mechanic disabled; power is converted to stamina (power * 10).
+    // cost=1 (default), so: 10 - 1 (cost) + 20 (power*10) = 29
+    expect(gs.run.player.stamina).toBe(29);
   });
 
   it('moves played card to discard pile', () => {

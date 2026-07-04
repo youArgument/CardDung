@@ -58,8 +58,6 @@ const Game = {
     });
 
     // Game Over → Hub
-    const goBtn = document.getElementById('btn-to-hub');
-    // Already bound above, but gameover screen also has this button
     document.querySelectorAll('#gameover-screen .btn-primary').forEach(btn => {
       btn.addEventListener('click', () => this.returnToHub());
     });
@@ -75,12 +73,22 @@ const Game = {
 
     // Dungeon grid
     const gridEl = document.getElementById('dungeon-grid');
-    gridEl.addEventListener('click', (e) => {
-      const cardEl = e.target.closest('.dungeon-card');
+    const handleGridTap = (cardEl) => {
       if (!cardEl) return;
       const row = parseInt(cardEl.dataset.row);
       const col = parseInt(cardEl.dataset.col);
       this.onDungeonCardClick(row, col);
+    };
+    gridEl.addEventListener('click', (e) => {
+      handleGridTap(e.target.closest('.dungeon-card'));
+    });
+    // Direct touch handling for mobile — avoids click synthesis delays/conflicts.
+    gridEl.addEventListener('touchend', (e) => {
+      const cardEl = e.target.closest('.dungeon-card');
+      if (!cardEl) return;
+      // Prevent the synthesized click from double-firing
+      e.preventDefault();
+      handleGridTap(cardEl);
     });
 
     // Hand
@@ -219,22 +227,6 @@ const Game = {
     // State safety: UI sometimes re-renders mid-flow.
     const isDomEnemy = cell.element && cell.element.classList.contains('enemy-card');
 
-    // Debug: help identify why clicks on revealed enemy cells don't trigger.
-    // (Keep lightweight; remove once confirmed.)
-    if (cell.revealed) {
-      console.debug('[dungeon-click]', {
-        row,
-        col,
-        revealed: cell.revealed,
-        cardType: cell.card?.type,
-        defeated: cell.card?.defeated,
-        domEnemy: isDomEnemy,
-        cardHp: cell.card?.hp,
-        stamina: run.player?.stamina,
-        handCount: run.deck?.hand?.length,
-      });
-    }
-
     // Exit flow: player must click the revealed door card to leave.
     if (cell.revealed && cell.card.type === DUNGEON_TEMPLATES.exit) {
       this.onEscape();
@@ -262,24 +254,12 @@ const Game = {
     // Base hit: if player clicks a revealed enemy cell, apply a small default damage.
     // (This must be before the general "revealed return".)
     if (cell.revealed && (cell.card.type === DUNGEON_TEMPLATES.enemy || isDomEnemy) && !cell.card.defeated) {
-      console.debug('[dungeon-base-hit] enter', {
-        row,
-        col,
-        cardType: cell.card?.type,
-        domEnemy: isDomEnemy,
-        defeated: cell.card?.defeated,
-        stamina: run.player?.stamina,
-      });
       // default hit costs 1 stamina
       const baseCost = 1;
       if (run.player.stamina < baseCost) {
-        console.debug('[dungeon-base-hit] not enough stamina', { stamina: run.player?.stamina });
-        // Out of stamina: treat as a "miss" (0-1 damage) but still count as an action tick.
+        // Out of stamina: treat as a "miss" — no damage shown but still count as an action tick.
         // Enemies should still react (advanceWorldTick).
-        const missBase = 0;
-        cell.card.hp -= missBase;
         GridUI.animateHit(cell);
-        GridUI.showDamage(cell, missBase, 'damage');
         GridUI.updateCell(cell);
         HUD.update(this.state);
         this.advanceWorldTick();
@@ -390,13 +370,6 @@ const Game = {
       return;
     }
 
-    // Handle merged cards (+)
-    let powerBonus = 0;
-    const handIdx = run.deck.hand.findIndex(c => c.uuid === uuid);
-    if (handIdx !== -1) {
-      // Check if this card came from a merged slot
-    }
-
     const result = CombatEngine.playCard(card, targetCell, this.state);
     if (!result) {
       // Dungeon item cards are handled here.
@@ -468,14 +441,12 @@ const Game = {
         run.deck.draw(itemCard.value);
         break;
       case 'maxEnergy':
-        p.maxEnergy += itemCard.value;
-        p.energy += itemCard.value;
+        // Energy mechanic disabled; convert to stamina instead.
+        p.maxStamina += itemCard.value * 10;
+        p.stamina = Math.min(p.stamina + itemCard.value * 10, p.maxStamina);
         break;
       case 'stamina':
         p.stamina = Math.min(p.stamina + itemCard.value, p.maxStamina);
-        break;
-      case 'draw':
-        run.deck.draw(itemCard.value);
         break;
     }
 
@@ -664,6 +635,15 @@ const Game = {
     document.getElementById('best-floor').textContent = s.bestFloor;
     document.getElementById('total-runs').textContent = s.totalRuns;
     document.getElementById('total-escapes').textContent = s.totalEscapes;
+
+    // Load and display version
+    fetch('VERSION')
+      .then(r => r.text())
+      .then(v => {
+        const el = document.getElementById('app-version');
+        if (el) el.textContent = `v${v.trim()}`;
+      })
+      .catch(() => {});
   },
 
   showScreen(name) {

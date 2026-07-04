@@ -58,8 +58,9 @@ export class CombatEngine {
         break;
       }
       case 'energy': {
-        p.energy += card.power;
-        result.effects.push({ type: 'energy', amount: card.power });
+        // Energy mechanic disabled; convert to stamina instead.
+        p.stamina = Math.min(p.stamina + card.power * 10, p.maxStamina);
+        result.effects.push({ type: 'energy', amount: card.power * 10 });
         break;
       }
     }

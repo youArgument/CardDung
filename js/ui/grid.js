@@ -40,6 +40,7 @@ export class GridUI {
   static renderRevealedCard(el, cell) {
     const card = cell.card;
     el.innerHTML = '';
+    if (!card) return;
 
     if (card.type === DUNGEON_TEMPLATES.empty) {
       el.classList.add('empty-slot');
@@ -111,12 +112,14 @@ export class GridUI {
   }
 
   static showDamage(cell, amount, type = 'damage') {
-    if (!cell.element) return;
+    if (!cell.element || amount <= 0) return;
     const num = document.createElement('div');
     num.className = `damage-number ${type}`;
     num.textContent = type === 'heal' ? `+${amount}` : `-${amount}`;
-    num.style.left = `${cell.element.offsetLeft + 20}px`;
-    num.style.top = `${cell.element.offsetTop}px`;
+    const rect = cell.element.getBoundingClientRect();
+    num.style.left = `${rect.left + 20}px`;
+    num.style.top = `${rect.top}px`;
+    num.style.position = 'fixed';
     cell.element.parentElement.appendChild(num);
     setTimeout(() => num.remove(), 800);
   }

@@ -83,10 +83,6 @@ export function generateDungeon(floor, roomIndex = 0) {
   }
 
   // Guarantee one exit card per room/dungeon instance.
-  // Choose an empty cell not adjacent to the start position (to keep early exits away).
-  const start = grid.find(c => c.row === 0 && c.col === 0) || null;
-  // We'll compute adjacency based on startPos after we set it.
-
   // Place first reveal at a random edge position
   const startPositions = [
     { row: 0, col: 1 }, { row: 0, col: 2 },

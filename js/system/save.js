@@ -6,7 +6,10 @@ export class SaveSystem {
       collection: state.collection,
       upgrades: state.upgrades,
       stats: {
-        ...state.stats,
+        totalRuns: state.stats.totalRuns,
+        totalEscapes: state.stats.totalEscapes,
+        bestFloor: state.stats.bestFloor,
+        totalKills: state.stats.totalKills,
         cardsDiscovered: [...state.stats.cardsDiscovered]
       }
     };

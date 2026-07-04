@@ -96,10 +96,6 @@ export class HubUI {
     }
   }
 
-  updateHub() {
-    document.getElementById('hub-gold').textContent = this.game.state.player.gold;
-  }
-
   // ===== DECK =====
   renderDeck() {
     const state = this.game.state;

@@ -84,7 +84,7 @@ export class GameState {
     // but without tying it to PLAYER_CARDS.
     if (item.collected) return false;
     const deck = this.run.deck;
-    if (deck.hand.length >= 5) return false;
+    if (deck.hand.length >= Deck.MAX_HAND) return false;
 
     deck.hand.push({
       uuid: item.uuid ?? Math.random().toString(36).slice(2, 10),

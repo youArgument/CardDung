@@ -17,6 +17,6 @@ export class Card {
     this.heal = t.heal || 0;
     this.poison = t.poison || 0;
     this.merged = isMerged;
-    this.uuid = Math.random().toString(36).substr(2, 9);
+    this.uuid = Math.random().toString(36).slice(2, 11);
   }
 }

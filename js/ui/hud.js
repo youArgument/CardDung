@@ -4,11 +4,16 @@ export class HUD {
     if (!run) return;
     const p = run.player;
 
+    const setText = (id, text) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    };
+
     // HP as number
-    document.getElementById('hp-text').textContent = `${Math.max(0, p.hp)}/${p.maxHp}`;
+    setText('hp-text', `${Math.max(0, p.hp)}/${p.maxHp}`);
 
     // Armor as number
-    document.getElementById('armor-badge').textContent = `🛡${p.armor}`;
+    setText('armor-badge', `🛡${p.armor}`);
 
     // Stamina
     const staminaEl = document.getElementById('stamina-badge');
@@ -18,10 +23,9 @@ export class HUD {
     }
 
     // Resources
-    document.getElementById('gold-val').textContent = p.gold;
-    // Energy is no longer a gating resource; show it as stamina cap placeholder.
-    document.getElementById('energy-val').textContent = `⚡${p.stamina}`;
-    document.getElementById('floor-val').textContent = `F${run.floor}`;
+    setText('gold-val', p.gold);
+    setText('energy-val', `⚡${p.stamina}`);
+    setText('floor-val', `F${run.floor}`);
 
     // Room progress
     const roomProgress = document.getElementById('room-progress');
@@ -33,6 +37,7 @@ export class HUD {
 
     // Reveal progress (stars)
     const starBar = document.getElementById('star-bar');
+    if (!starBar) return;
     starBar.innerHTML = '';
     for (let i = 0; i < run.maxRevealPerTurn; i++) {
       const star = document.createElement('div');
