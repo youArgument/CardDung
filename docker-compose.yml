@@ -1,0 +1,16 @@
+services:
+  carddung:
+    build: .
+    container_name: carddung
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  carddung-server:
+    build:
+      context: .
+      dockerfile: server.Dockerfile
+    container_name: carddung-server
+    ports:
+      - "4000:4000"
+    restart: unless-stopped

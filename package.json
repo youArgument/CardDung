@@ -1,0 +1,18 @@
+{
+  "name": "patient-rogue",
+  "version": "1.0.0",
+  "description": "Extraction Card Dungeon - A card-based roguelike deckbuilding game",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "http-server -p 3000 --cors",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "http-server": "^14.1.1"
+  },
+  "devDependencies": {
+    "vitest": "^3.1.1"
+  }
+}
