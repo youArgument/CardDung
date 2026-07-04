@@ -17,6 +17,7 @@ const Game = {
   hub: null,
   hubUI: null,
   selectedHandCard: null,
+  newSWWorker: null,
 
   init() {
     this.state = new GameState();
@@ -40,12 +41,25 @@ const Game = {
     this.bindEvents();
     this.hubUI.init();
     this.updateMenu();
+    this.bindUpdateButton();
 
     document.addEventListener('click', () => this.audio.init(), { once: true });
     document.addEventListener('touchstart', () => this.audio.init(), { once: true });
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        console.log('[SW] registered', reg.scope);
+        reg.addEventListener('updatefound', () => {
+          Game.newSWWorker = reg.installing;
+          Game.newSWWorker.addEventListener('statechange', () => {
+            if (Game.newSWWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[SW] update available');
+              const banner = document.getElementById('update-banner');
+              if (banner) banner.classList.remove('hidden');
+            }
+          });
+        });
+      }).catch(err => console.error('[SW] registration failed:', err));
     }
   },
 
@@ -651,6 +665,21 @@ const Game = {
     const screen = document.getElementById(`${name}-screen`);
     if (screen) screen.classList.add('active');
     this.state.screen = name;
+  },
+
+  // ===== PWA UPDATE =====
+  bindUpdateButton() {
+    const btn = document.getElementById('btn-update-reload');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        if (Game.newSWWorker) {
+          Game.newSWWorker.postMessage('SKIP_WAITING');
+        }
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        }, { once: true });
+      });
+    }
   }
 };
 

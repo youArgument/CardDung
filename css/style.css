@@ -695,6 +695,41 @@ html, body {
   cursor: pointer; margin-left: 8px;
 }
 
+/* ===== UPDATE BANNER ===== */
+.update-banner {
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 100%;
+  background: var(--accent-green);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  z-index: 300;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  animation: slideUp 0.3s ease-out;
+}
+.update-banner.hidden { display: none; }
+.btn-update {
+  background: white;
+  color: var(--accent-green);
+  border: none;
+  padding: 6px 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+.btn-update:active { transform: scale(0.96); }
+@keyframes slideUp {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-height: 640px) {
   :root { --card-size: 65px; --card-gap: 4px; }

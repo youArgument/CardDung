@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "http-server -p 3000 --cors",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "deploy": "docker compose up -d --build && node bump-version.mjs"
   },
   "dependencies": {
     "http-server": "^14.1.1"
