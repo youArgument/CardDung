@@ -1,5 +1,6 @@
 import { DungeonEngine } from '../engine/dungeon.js';
 import { DUNGEON_TEMPLATES } from '../data/dungeon.js';
+import { PLAYER_CARDS } from '../data/cards.js';
 import { t } from '../system/i18n.js';
 
 export class GridUI {
@@ -62,6 +63,13 @@ export class GridUI {
       atkBadge.textContent = card.atk;
       el.appendChild(atkBadge);
 
+      if (card.armor > 0) {
+        const armorBadge = document.createElement('div');
+        armorBadge.className = 'card-armor';
+        armorBadge.textContent = card.armor;
+        el.appendChild(armorBadge);
+      }
+
       const sprite = document.createElement('div');
       sprite.className = 'card-sprite';
       sprite.textContent = card.sprite;
@@ -71,18 +79,55 @@ export class GridUI {
       label.className = 'card-label';
       label.textContent = t(`enemy.${card.template}.name`, card.name);
       el.appendChild(label);
+
+      // Show enemy hand cards as small badges.
+      if (card._enemyHand && card._enemyHand.length > 0) {
+        const handBar = document.createElement('div');
+        handBar.className = 'enemy-hand-bar';
+        for (const hc of card._enemyHand) {
+          const badge = document.createElement('span');
+          badge.className = 'enemy-hand-card';
+          // Show action icon based on first effect.
+          const ffx = hc.effects?.[0];
+          if (ffx?.action === 'damage_player') badge.textContent = '⚔️';
+          else if (ffx?.action === 'enemy_armor') badge.textContent = '🛡️';
+          else if (ffx?.action === 'heal_enemy') badge.textContent = '💚';
+          else if (ffx?.action === 'enemy_retreat') badge.textContent = '🏃';
+          else if (ffx?.action === 'enemy_buff') badge.textContent = '🔥';
+          else badge.textContent = '🂠';
+          // Tooltip with card name.
+          const lang = localStorage.getItem('carddung-lang') || 'en';
+          badge.title = lang === 'ru' ? hc.nameRu : hc.nameEn;
+          handBar.appendChild(badge);
+        }
+        el.appendChild(handBar);
+      }
+
+      // Show frozen indicator.
+      if (card._frozenTicks > 0) {
+        const frozenBadge = document.createElement('div');
+        frozenBadge.className = 'enemy-frozen';
+        frozenBadge.textContent = `❄️${card._frozenTicks}`;
+        el.appendChild(frozenBadge);
+      }
     } else if (card.type === DUNGEON_TEMPLATES.item) {
       el.classList.add('item-card');
       if (card.collected) el.classList.add('defeated');
 
+      // Render from real PLAYER_CARDS.
+      const template = PLAYER_CARDS[card.cardId];
+      const spriteName = template?.nameEn || template?.name || 'Card';
+      const lang = localStorage.getItem('carddung-lang') || 'en';
+      const displayName = lang === 'ru' ? (template?.nameRu || spriteName) : spriteName;
+
       const sprite = document.createElement('div');
       sprite.className = 'card-sprite';
-      sprite.textContent = card.sprite;
+      sprite.textContent = template?.sprite || '🃏';
       el.appendChild(sprite);
 
       const label = document.createElement('div');
       label.className = 'card-label';
-      label.textContent = t(`item.${card.template}.name`, card.name);
+      label.textContent = displayName;
       el.appendChild(label);
     } else if (card.type === DUNGEON_TEMPLATES.exit) {
       el.classList.add('exit-card');

@@ -10,6 +10,7 @@ import { HandUI } from './ui/hand.js';
 import { CombatEngine } from './engine/combat.js';
 import { DUNGEON_TEMPLATES } from './data/dungeon.js';
 import { PLAYER_CARDS, loadRemoteCards } from './data/cards.js';
+import { ENEMY_CARDS } from './data/enemies.js';
 import { CLASSES } from './data/classes.js';
 import { t, setLanguage, applyTranslations, getLanguage } from './system/i18n.js';
 
@@ -128,6 +129,13 @@ const Game = {
     });
     document.getElementById('btn-exit-continue').addEventListener('click', () => this.onExitContinue());
     document.getElementById('btn-exit-hub').addEventListener('click', () => this.onExitToHub());
+
+    // Rest popup
+    document.getElementById('rest-popup').addEventListener('click', (e) => {
+      if (e.target.id === 'rest-popup') this.hideRestPopup();
+    });
+    document.getElementById('btn-rest-yes').addEventListener('click', () => this.onRestYes());
+    document.getElementById('btn-rest-no').addEventListener('click', () => this.onRestNo());
 
     // Generic confirmation popup
     document.getElementById('class-confirm-popup').addEventListener('click', (e) => {
@@ -460,6 +468,9 @@ const Game = {
         GridUI.showDamage(effect.cell, effect.gold, 'heal');
         GridUI.updateCell(effect.cell);
       }
+      // Exploration hints from player cards.
+      if (effect.type === 'hint_enemies') this.showExplorationHints({ type: 'enemies' });
+      if (effect.type === 'hint_cell') this.showExplorationHints({ type: 'cell', cell: effect.cell });
     }
 
     HandUI.render(this.state, document.getElementById('hand-container'));
@@ -525,6 +536,72 @@ const Game = {
     HUD.update(this.state);
   },
 
+  showRestPopup() {
+    const run = this.state.run;
+    if (!run) return;
+
+    const title = document.getElementById('rest-popup-title');
+    const desc = document.getElementById('rest-popup-desc');
+    const yesBtn = document.getElementById('btn-rest-yes');
+    const noBtn = document.getElementById('btn-rest-no');
+
+    title.textContent = t('rest.title');
+    desc.textContent = t('rest.desc');
+    yesBtn.textContent = t('rest.yes');
+    const skipGold = (run.restSkipCount + 1) * 3;
+    noBtn.textContent = t('rest.no', skipGold);
+
+    document.getElementById('rest-popup').classList.remove('hidden');
+  },
+
+  hideRestPopup() {
+    document.getElementById('rest-popup').classList.add('hidden');
+  },
+
+  onRestYes() {
+    this.hideRestPopup();
+    // Restore full stamina, reset skip counter.
+    this.state.restStamina();
+    HUD.update(this.state);
+    // Advance to next room or exit door.
+    this.advanceAfterRest();
+  },
+
+  onRestNo() {
+    this.hideRestPopup();
+    // Skip rest: earn gold bonus.
+    const bonus = this.state.skipRest();
+    HUD.update(this.state);
+    // Show a brief gold notification.
+    this.showGoldNotification(bonus);
+    // Advance to next room or exit door.
+    setTimeout(() => this.advanceAfterRest(), 400);
+  },
+
+  advanceAfterRest() {
+    const run = this.state.run;
+    if (this.state.isLastRoom()) {
+      this.onVictory();
+    } else {
+      this.state.advanceRoom();
+      this.updateRoomProgress();
+      GridUI.render(run.dungeon, this.state, document.getElementById('dungeon-grid'));
+      HandUI.render(this.state, document.getElementById('hand-container'));
+      HUD.update(this.state);
+    }
+  },
+
+  showGoldNotification(amount) {
+    const el = document.createElement('div');
+    el.className = 'damage-number heal';
+    el.textContent = `+${amount} 💰`;
+    el.style.left = `${window.innerWidth / 2 - 30}px`;
+    el.style.top = `${window.innerHeight / 2}px`;
+    el.style.fontSize = '24px';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1000);
+  },
+
   showExitPopup() {
     const run = this.state.run;
     const title = document.getElementById('exit-popup-title');
@@ -546,19 +623,8 @@ const Game = {
 
   onExitContinue() {
     this.hideExitPopup();
-    const run = this.state.run;
-
-    if (this.state.isLastRoom()) {
-      // Dungeon complete — show rewards
-      this.onVictory();
-    } else {
-      // Advance to next room
-      this.state.advanceRoom();
-      this.updateRoomProgress();
-      GridUI.render(run.dungeon, this.state, document.getElementById('dungeon-grid'));
-      HandUI.render(this.state, document.getElementById('hand-container'));
-      HUD.update(this.state);
-    }
+    // Show rest popup before advancing.
+    setTimeout(() => this.showRestPopup(), 300);
   },
 
   onExitToHub() {
@@ -579,14 +645,206 @@ const Game = {
   },
 
   advanceWorldTick() {
+    const run = this.state.run;
+    if (!run || !run.dungeon) return;
+
     // Process debuff ticks on all enemies (poison, nullify, etc.)
     this.processDebuffTicks();
 
-    // After each player action, all revealed alive enemies deal damage.
-    this.enemiesAttack();
+    // Tick down room-wide effects.
+    this.tickRoomEffects();
+
+    // Each revealed alive enemy draws and plays a card.
+    this.enemyAITick();
+
+    // Tick down enemy buffs.
+    this.tickEnemyBuffs();
 
     // Process run-level buffs (player_buff) — decrement and expire.
     this.processBuffTicks();
+
+    // Check death after all enemy actions resolved.
+    if (this.state.isDead()) setTimeout(() => this.onDefeat(), 600);
+  },
+
+  // Each enemy draws a card, then plays one randomly from hand.
+  enemyAITick() {
+    const run = this.state.run;
+    if (!run || !run.dungeon) return;
+
+    for (const cell of run.dungeon.grid) {
+      if (!cell.revealed || cell.card.type !== DUNGEON_TEMPLATES.enemy || cell.card.defeated) continue;
+
+      // Init enemy deck/hand on first tick.
+      const card = cell.card;
+      if (!card._deckInitialized) {
+        const template = card.deckTemplate || ['bite'];
+        card._enemyDeck = [...template].sort(() => Math.random() - 0.5); // shuffle
+        card._enemyHand = [];
+        card._discardPile = [];
+        card.maxHp = card.hp;
+        card._deckInitialized = true;
+      }
+
+      // Draw up to max hand (2).
+      const maxHand = card._maxHand || 2;
+      while (card._enemyHand.length < maxHand && card._enemyDeck.length > 0) {
+        const drawnId = card._enemyDeck.shift();
+        const templateCard = ENEMY_CARDS[drawnId];
+        if (templateCard) {
+          card._enemyHand.push({ ...templateCard });
+        }
+      }
+
+      // Reshuffle discard into deck if both empty.
+      if (card._enemyDeck.length === 0 && card._enemyHand.length === 0 && card._discardPile.length > 0) {
+        card._enemyDeck = [...card._discardPile].sort(() => Math.random() - 0.5);
+        card._discardPile = [];
+      }
+
+      // Check if enemy is frozen (skip card play).
+      if (card._frozenTicks > 0) {
+        card._frozenTicks--;
+        GridUI.showDamage(cell, 0, 'block');
+        GridUI.updateCell(cell);
+        continue;
+      }
+
+      // Play random card from hand.
+      if (card._enemyHand.length === 0) continue;
+      const playIdx = Math.floor(Math.random() * card._enemyHand.length);
+      const playCard = card._enemyHand.splice(playIdx, 1)[0];
+
+      // Flash the cell to show enemy is playing a card.
+      if (cell.element) {
+        cell.element.classList.add('enemy-playing');
+        setTimeout(() => cell.element?.classList.remove('enemy-playing'), 400);
+      }
+      card._discardPile.push(playCard);
+
+      // Process each effect through CombatEngine.
+      for (const effect of playCard.effects) {
+        effect._sourceCell = cell;
+        const results = CombatEngine.processEffect(effect, playCard, null, run.player, run, true);
+        this.handleEnemyCardResults(results, cell, run);
+      }
+
+      // Re-render grid after enemy card effects.
+      GridUI.render(run.dungeon, this.state, document.getElementById('dungeon-grid'));
+      HUD.update(this.state);
+    }
+  },
+
+  handleEnemyCardResults(results, cell, run) {
+    for (const r of results) {
+      if (r.type === 'damage_player') {
+        const result = this.state.takeDamage(r.amount);
+        GridUI.showDamage(cell, result.damage, 'damage');
+        GridUI.animateHit(cell);
+      } else if (r.type === 'heal_enemy' && r.cell) {
+        GridUI.showDamage(r.cell, r.amount, 'heal');
+        GridUI.updateCell(r.cell);
+      } else if (r.type === 'enemy_armor' && r.cell) {
+        GridUI.updateCell(r.cell);
+      } else if (r.type === 'enemy_retreat' && r.cell) {
+        // Enemy retreated: close cell back to face-down.
+        const el = r.cell.element;
+        if (el) {
+          el.classList.remove('revealed', 'enemy-card');
+          el.classList.add('face-down');
+        }
+        // Reset revealed but keep deck state for when re-revealed.
+        r.cell.revealed = false;
+      } else if (r.type === 'hint_enemies') {
+        this.showExplorationHints({ type: 'enemies' });
+      } else if (r.type === 'hint_cell') {
+        this.showExplorationHints({ type: 'cell', cell: r.cell });
+      }
+    }
+  },
+
+  showExplorationHints(hint) {
+    const run = this.state.run;
+    if (!run || !run.dungeon) return;
+
+    // Clear previous hints.
+    for (const c of run.dungeon.grid) {
+      if (c.element?.classList.contains('hint-gold')) {
+        c.element.classList.remove('hint-gold');
+      }
+    }
+
+    if (hint.type === 'enemies') {
+      // Highlight all unrevealed enemy cells with golden border.
+      for (const cell of run.dungeon.grid) {
+        if (!cell.revealed && cell.card.type === DUNGEON_TEMPLATES.enemy) {
+          cell.element?.classList.add('hint-gold');
+        }
+      }
+    } else if (hint.type === 'cell') {
+      hint.cell.element?.classList.add('hint-gold');
+    }
+
+    // Remove hints after 3 seconds.
+    setTimeout(() => {
+      for (const c of run.dungeon.grid) {
+        if (c.element?.classList.contains('hint-gold')) {
+          c.element.classList.remove('hint-gold');
+        }
+      }
+    }, 3000);
+  },
+
+  tickRoomEffects() {
+    const run = this.state.run;
+    if (!run || !run.roomEffects) return;
+
+    // Decrement ticks, remove expired.
+    for (let i = run.roomEffects.length - 1; i >= 0; i--) {
+      run.roomEffects[i].ticks--;
+      if (run.roomEffects[i].ticks <= 0) run.roomEffects.splice(i, 1);
+    }
+  },
+
+  tickEnemyBuffs() {
+    const run = this.state.run;
+    if (!run || !run.dungeon) return;
+
+    for (const cell of run.dungeon.grid) {
+      if (!cell.revealed || cell.card.type !== DUNGEON_TEMPLATES.enemy || cell.card.defeated) continue;
+      const buffs = cell.card.buffs;
+      if (!buffs) continue;
+      for (const key of Object.keys(buffs)) {
+        buffs[key].ticks--;
+        if (buffs[key].ticks <= 0) delete buffs[key];
+      }
+    }
+  },
+
+  // Legacy: kept for compatibility, but enemyAITick handles attacks now.
+  enemiesAttack() {
+    const run = this.state.run;
+    const attacks = DungeonEngine.allEnemiesAttack(run.dungeon, run);
+    if (attacks.length === 0) return;
+
+    const validAttacks = [];
+    for (const attack of attacks) {
+      const hasNullify = attack.cell.card.debuffs?.some(d => d.type === 'nullify' && d.ticks > 0);
+      if (!hasNullify) {
+        validAttacks.push(attack);
+      }
+    }
+
+    if (validAttacks.length === 0) return;
+    this.audio.playHit();
+
+    for (const attack of validAttacks) {
+      const result = this.state.takeDamage(attack.damage);
+      GridUI.showDamage(attack.cell, result.damage, 'damage');
+      GridUI.animateHit(attack.cell);
+    }
+
+    HUD.update(this.state);
   },
 
   processDebuffTicks() {
@@ -869,6 +1127,21 @@ const Game = {
     }
   },
 
+  // Generate a random starting deck for Beggar: 4 cards, at least 1 attack.
+  generateBeggarDeck() {
+    const attackIds = Object.keys(PLAYER_CARDS).filter(id => PLAYER_CARDS[id].type === 'attack');
+    const armorIds = Object.keys(PLAYER_CARDS).filter(id => PLAYER_CARDS[id].type === 'armor');
+    const deck = [];
+    // Guarantee at least 1 attack card.
+    deck.push(attackIds[Math.floor(Math.random() * attackIds.length)]);
+    // Fill remaining 3 from attack + armor pool.
+    const allBasic = [...attackIds, ...armorIds];
+    for (let i = 0; i < 3; i++) {
+      deck.push(allBasic[Math.floor(Math.random() * allBasic.length)]);
+    }
+    return deck.sort(() => Math.random() - 0.5);
+  },
+
   showClassDetail(classId) {
     const cls = CLASSES[classId];
     if (!cls) return;
@@ -876,6 +1149,9 @@ const Game = {
     const name = t(cls.nameKey);
     const desc = t(cls.descKey);
     const s = cls.stats;
+
+    // For Beggar, generate a random preview deck.
+    const displayDeck = classId === 'beggar' ? this.generateBeggarDeck() : cls.startingDeck;
 
     const statsHtml = `<div class="class-detail-stats-row">
       <span class="detail-stat">STR ${s.strength}</span>
@@ -885,9 +1161,9 @@ const Game = {
       <span class="detail-stat">VIT ${s.vitality}</span>
     </div>`;
 
-    const deckHtml = cls.startingDeck.length > 0
+    const deckHtml = displayDeck.length > 0
       ? `<div class="detail-deck-cards">
-          ${cls.startingDeck.map(cardId => {
+          ${displayDeck.map(cardId => {
             const card = PLAYER_CARDS[cardId];
             if (!card) return '';
             const cardName = t(`card.${cardId}.name`, card.name);
@@ -931,7 +1207,7 @@ const Game = {
           ${statsHtml}
         </div>
         <div class="class-detail-section">
-          <div class="detail-section-title">${t('class.picker.deck', cls.startingDeck.length)}</div>
+          <div class="detail-section-title">${t('class.picker.deck', displayDeck.length)}</div>
           ${deckHtml}
         </div>
         <div class="class-detail-section">
@@ -951,7 +1227,12 @@ const Game = {
 
   confirmClass(classId) {
     this.state.selectedClassId = classId;
-    this.state.activeDeck = [...CLASSES[classId].startingDeck];
+    // For Beggar, generate random deck (min 1 attack). Otherwise use class starting deck.
+    if (classId === 'beggar') {
+      this.state.activeDeck = this.generateBeggarDeck();
+    } else {
+      this.state.activeDeck = [...CLASSES[classId].startingDeck];
+    }
     this.state.player.gold = 20;
     this.state.collection = [];
     this.state.upgrades = {};

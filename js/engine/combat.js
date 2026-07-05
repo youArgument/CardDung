@@ -125,6 +125,135 @@ export class CombatEngine {
         results.push({ type: 'player_buff', ticks });
         break;
       }
+      // --- Enemy-played card actions ---
+      case 'damage_player': {
+        const srcEnemy = effect._sourceCell;
+        if (!srcEnemy) break;
+        let power = efx.power || 0;
+        // Apply enemy buffs
+        if (srcEnemy.card.buffs?.power) power += srcEnemy.card.buffs.power.value;
+        // Player armor absorbs first
+        let absorbed = Math.min(p.armor, power);
+        p.armor -= absorbed;
+        let dmg = power - absorbed;
+        p.hp = Math.max(0, p.hp - dmg);
+        results.push({ type: 'damage_player', amount: dmg, cell: srcEnemy });
+        break;
+      }
+      case 'enemy_armor': {
+        const srcEnemy = effect._sourceCell;
+        if (!srcEnemy) break;
+        const amt = efx.amount || 0;
+        if (!amt) break;
+        const maxA = srcEnemy.card.maxArmor || 99;
+        srcEnemy.card.armor = Math.min((srcEnemy.card.armor || 0) + amt, maxA);
+        results.push({ type: 'enemy_armor', amount: amt, cell: srcEnemy });
+        break;
+      }
+      case 'heal_enemy': {
+        const srcEnemy = effect._sourceCell;
+        if (!srcEnemy) break;
+        const amt = efx.amount || 0;
+        if (!amt) break;
+        const maxHp = srcEnemy.card.maxHp || srcEnemy.card.hp + amt;
+        srcEnemy.card.hp = Math.min(srcEnemy.card.hp + amt, maxHp);
+        results.push({ type: 'heal_enemy', amount: amt, cell: srcEnemy });
+        break;
+      }
+      case 'enemy_retreat': {
+        const srcEnemy = effect._sourceCell;
+        if (!srcEnemy) break;
+        // Close the enemy cell back to unrevealed state
+        srcEnemy.revealed = false;
+        srcEnemy.card.debuffs = [];
+        srcEnemy.card.buffs = {};
+        results.push({ type: 'enemy_retreat', cell: srcEnemy });
+        break;
+      }
+      case 'enemy_buff': {
+        const srcEnemy = effect._sourceCell;
+        if (!srcEnemy) break;
+        srcEnemy.card.buffs = srcEnemy.card.buffs || {};
+        const ticks = efx.ticks || 3;
+        if (efx.stat === 'power') srcEnemy.card.buffs.power = { value: efx.amount, ticks };
+        results.push({ type: 'enemy_buff', stat: efx.stat, amount: efx.amount, cell: srcEnemy, ticks });
+        break;
+      }
+      // --- Room-wide effects ---
+      case 'room_debuff': {
+        if (!run.roomEffects) run.roomEffects = [];
+        const ticks = efx.ticks || 3;
+        run.roomEffects.push({
+          target: efx.target || 'enemy',
+          stat: efx.stat || 'damage',
+          amount: efx.amount || 0,
+          ticks,
+        });
+        results.push({ type: 'room_debuff', target: efx.target, stat: efx.stat, amount: efx.amount, ticks });
+        break;
+      }
+      // --- Exploration cards (visual hints only) ---
+      case 'reveal_enemies': {
+        results.push({ type: 'hint_enemies' });
+        break;
+      }
+      case 'reveal_all_safe': {
+        for (const cell of run.dungeon.grid) {
+          if (!cell.revealed && cell.card.type !== DUNGEON_TEMPLATES.enemy) {
+            results.push({ type: 'hint_cell', cell });
+          }
+        }
+        break;
+      }
+      case 'reveal_item': {
+        const itemCells = run.dungeon.grid.filter(c => !c.revealed && c.card.type === DUNGEON_TEMPLATES.item);
+        if (itemCells.length > 0) {
+          const picked = itemCells[Math.floor(Math.random() * itemCells.length)];
+          results.push({ type: 'hint_cell', cell: picked });
+        }
+        break;
+      }
+      // --- Enemy deck interaction cards ---
+      case 'enemy_discard': {
+        if (!targetCell || targetCell.card.type !== DUNGEON_TEMPLATES.enemy || targetCell.card.defeated) break;
+        const count = efx.count || 1;
+        const hand = targetCell.card._enemyHand || [];
+        const discarded = hand.splice(0, Math.min(count, hand.length));
+        if (discarded.length > 0) {
+          (targetCell.card._discardPile || []).push(...discarded);
+          results.push({ type: 'enemy_discard', count: discarded.length, cell: targetCell });
+        }
+        break;
+      }
+      case 'steal_enemy_card': {
+        if (!targetCell || targetCell.card.type !== DUNGEON_TEMPLATES.enemy || targetCell.card.defeated) break;
+        const hand = targetCell.card._enemyHand || [];
+        if (hand.length === 0) break;
+        // Steal random card from enemy hand.
+        const stealIdx = Math.floor(Math.random() * hand.length);
+        const stolenCard = hand.splice(stealIdx, 1)[0];
+        // Add to player's deck discard pile as a reusable card (converted to attack-like).
+        run.deck.discardPile.push({
+          uuid: Math.random().toString(36).slice(2, 14),
+          id: stolenCard.id || 'stolen_card',
+          type: 'attack',
+          name: stolenCard.nameEn || stolenCard.nameRu || 'Stolen Card',
+          sprite: '🃏',
+          cost: 1,
+          power: efx.power || 2,
+          effects: [{ action: 'damage', power: efx.power || 2 }],
+        });
+        results.push({ type: 'steal_enemy_card', cell: targetCell });
+        break;
+      }
+      case 'freeze_enemy_card': {
+        if (!targetCell || targetCell.card.type !== DUNGEON_TEMPLATES.enemy || targetCell.card.defeated) break;
+        // Freeze = skip next N card plays. Store as a flag on the enemy card.
+        const ticks = efx.ticks || 1;
+        targetCell.card._frozenTicks = (targetCell.card._frozenTicks || 0) + ticks;
+        results.push({ type: 'freeze_enemy', cell: targetCell, ticks });
+        break;
+      }
     }
 
     return results;

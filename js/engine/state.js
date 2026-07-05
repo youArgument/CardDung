@@ -46,18 +46,23 @@ export class GameState {
       extraDraw: upg.cardDraw || 0,
       mergeBonus: upg.mergeBonus || 0,
       artifact: classData.artifact ? { ...classData.artifact } : null,
-      firstCardFree: false
+      firstCardFree: false,
+      restSkipCount: 0 // tracks consecutive rooms without resting
     };
 
-    // If class has no starting deck (e.g. Beggar), generate 3 random basic cards.
-    let deckCards = [...classData.startingDeck];
-    if (deckCards.length === 0) {
-      const playableIds = Object.keys(PLAYER_CARDS).filter(id => {
-        const c = PLAYER_CARDS[id];
-        return c.type === 'attack' || c.type === 'armor';
-      });
-      for (let i = 0; i < 3; i++) {
-        deckCards.push(playableIds[Math.floor(Math.random() * playableIds.length)]);
+    // Use the player's active deck (managed in hub). Falls back to class starting deck on first game.
+    let deckCards = [...this.activeDeck];
+    if (!deckCards || deckCards.length === 0) {
+      deckCards = [...classData.startingDeck];
+      // Beggar with no deck: generate 4 random basic cards.
+      if (deckCards.length === 0) {
+        const playableIds = Object.keys(PLAYER_CARDS).filter(id => {
+          const c = PLAYER_CARDS[id];
+          return c.type === 'attack' || c.type === 'armor';
+        });
+        for (let i = 0; i < 4; i++) {
+          deckCards.push(playableIds[Math.floor(Math.random() * playableIds.length)]);
+        }
       }
     }
     this.run.deck.initFromTemplates(deckCards);
@@ -94,28 +99,51 @@ export class GameState {
   }
 
   collectItemAsCard(item) {
-    // Convert dungeon item into a hand card. We store it as a Card-like object
-    // but without tying it to PLAYER_CARDS.
+    // Pick up a real card from PLAYER_CARDS.
     if (item.collected) return false;
     const deck = this.run.deck;
     if (deck.hand.length >= Deck.MAX_HAND) return false;
 
+    // item.cardId references a real PLAYER_CARDS entry.
+    const template = PLAYER_CARDS[item.cardId];
+    if (!template) {
+      item.collected = true;
+      return false;
+    }
+
     deck.hand.push({
-      uuid: item.uuid ?? Math.random().toString(36).slice(2, 10),
-      type: 'item',
-      cost: 0,
-      sprite: item.sprite,
-      name: item.name,
-      desc: item.desc ?? '',
-      // item.effect determines what it does when used
-      effect: item.effect,
-      value: item.value,
+      uuid: Math.random().toString(36).slice(2, 14),
+      id: template.id,
+      type: template.type,
+      cost: template.cost,
+      sprite: template.sprite,
+      name: template.name,
+      desc: template.desc,
+      power: template.power || 0,
+      heal: template.heal || 0,
+      poison: template.poison || 0,
+      effects: template.effects ? [...template.effects] : undefined,
+      targetMode: template.targetMode,
     });
 
     item.collected = true;
     return true;
   }
 
+  // Rest: restore full stamina, reset skip counter.
+  restStamina() {
+    this.run.player.stamina = this.run.player.maxStamina;
+    this.run.restSkipCount = 0;
+  }
+
+  // Skip rest: increment skip counter and award gold bonus.
+  // Returns the gold earned from skipping.
+  skipRest() {
+    this.run.restSkipCount++;
+    const bonus = this.run.restSkipCount * 3;
+    this.run.player.gold += bonus;
+    return bonus;
+  }
 
 
   takeDamage(amount) {

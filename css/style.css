@@ -283,12 +283,70 @@ html, body {
   line-height: 1.1;
 }
 
+/* Enemy hand display */
+.enemy-hand-bar {
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+}
+.enemy-hand-card {
+  font-size: 11px;
+  background: var(--bg-panel);
+  border: 1px solid #444;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+/* Frozen indicator */
+.enemy-frozen {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  font-size: 10px;
+  background: var(--accent-blue);
+  color: white;
+  padding: 1px 3px;
+  border-radius: 2px;
+}
+
+/* Enemy card currently playing animation */
+.dungeon-card.enemy-playing {
+  box-shadow: 0 0 20px rgba(192,57,43,0.8) !important;
+  z-index: 15;
+}
+
 .dungeon-card.hit {
   animation: cardHit 0.3s;
 }
 .dungeon-card.defeated {
   opacity: 0.3;
   pointer-events: none;
+}
+.dungeon-card.hint-gold {
+  border-color: var(--accent-gold) !important;
+  box-shadow: 0 0 16px rgba(201,168,76,0.7), inset 0 0 12px rgba(201,168,76,0.3);
+  animation: hintPulse 1s infinite;
+}
+
+.dungeon-card .card-armor {
+  position: absolute; bottom: -5px; left: -5px;
+  background: var(--accent-blue);
+  color: white; font-size: 9px; font-weight: 800;
+  width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  clip-path: polygon(0 0, 100% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+@keyframes hintPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(201,168,76,0.4), inset 0 0 6px rgba(201,168,76,0.2); }
+  50% { box-shadow: 0 0 20px rgba(201,168,76,0.8), inset 0 0 14px rgba(201,168,76,0.3); }
 }
 
 /* ===== HAND ===== */

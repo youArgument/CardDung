@@ -1,4 +1,5 @@
-import { DUNGEON_ENEMIES, DUNGEON_ITEMS } from './enemies.js';
+import { DUNGEON_ENEMIES } from './enemies.js';
+import { PLAYER_CARDS } from './cards.js';
 
 export const DUNGEON_TEMPLATES = {
   enemy: 'enemy',
@@ -7,6 +8,19 @@ export const DUNGEON_TEMPLATES = {
   empty: 'empty',
   treasure: 'treasure'
 };
+
+// Determine which cards are suitable as dungeon floor items (non-attack).
+function getItemCardPool() {
+  return Object.values(PLAYER_CARDS).filter(c => {
+    // Armor and energy cards are always item-like.
+    if (c.type === 'armor' || c.type === 'energy') return true;
+    // Cards with heal/stamina effects in new schema.
+    if (c.effects?.some(e => e.action === 'heal' || e.action === 'stamina')) return true;
+    // Legacy heal field.
+    if (c.heal) return true;
+    return false;
+  });
+}
 
 export function generateDungeon(floor, roomIndex = 0) {
   const cols = 4;
@@ -36,22 +50,20 @@ export function generateDungeon(floor, roomIndex = 0) {
       gold: template.gold + roomIndex,
       sprite: template.sprite,
       name: template.name,
-      defeated: false
+      defeated: false,
+      deckTemplate: template.deckTemplate || ['bite'],
+      maxArmor: template.maxArmor || 0,
     });
   }
 
-  // Items
+  // Items — real cards from PLAYER_CARDS (armor/energy/heal types).
+  const itemPool = getItemCardPool();
   for (let i = 0; i < itemCount; i++) {
-    const items = Object.values(DUNGEON_ITEMS);
-    const template = items[Math.floor(Math.random() * items.length)];
+    if (itemPool.length === 0) break;
+    const cardId = itemPool[Math.floor(Math.random() * itemPool.length)].id;
     pool.push({
       type: DUNGEON_TEMPLATES.item,
-      template: template.id,
-      sprite: template.sprite,
-      name: template.name,
-      desc: template.desc,
-      effect: template.effect,
-      value: template.value,
+      cardId, // real PLAYER_CARDS id
       collected: false
     });
   }

@@ -177,6 +177,12 @@ const translations = {
     'confirm.new_game_desc': 'All progress will be lost forever!',
     'confirm.change_class_title': 'Change Class?',
     'confirm.change_class_desc': 'All progress will be reset!',
+
+    // Rest popup
+    'rest.title': 'Room Cleared',
+    'rest.desc': 'Rest to restore all stamina, or push forward for gold.',
+    'rest.yes': 'REST (Full Stamina)',
+    'rest.no': "Skip (+{0} Gold)",
   },
   ru: {
     // Menu
@@ -354,6 +360,12 @@ const translations = {
     'confirm.new_game_desc': 'Весь прогресс будет потерян навсегда!',
     'confirm.change_class_title': 'Сменить класс?',
     'confirm.change_class_desc': 'Весь прогресс будет сброшен!',
+
+    // Rest popup
+    'rest.title': 'Комната Очищена',
+    'rest.desc': 'Отдохни и восстановь стамину или продолжай вперёд за золото.',
+    'rest.yes': 'ОТДЫХ (Полная стамина)',
+    'rest.no': 'Продолжить (+{0} золота)',
   }
 };
 
