@@ -1,4 +1,4 @@
-const CACHE_NAME = "patient-rogue-v7";
+const CACHE_NAME = "patient-rogue-v8";
 
 const ASSETS = [
   "./",

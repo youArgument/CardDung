@@ -33,8 +33,9 @@ export class GameState {
       deck: new Deck(),
         floor: 1,
         currentRoom: 0,
-        totalRooms: 1 + Math.floor(Math.random() * 3), // 1-3 rooms
+        totalRooms: 1 + Math.floor(Math.random() * 5), // 1-5 rooms
         roomsCleared: 0,
+        revealedEnemiesCount: 0,
       dungeon: null,
       turn: 0,
       revealedThisTurn: 0,
@@ -75,6 +76,10 @@ export class GameState {
     this.run.dungeon.revealedCount++;
     this.run.cardsRevealed++;
     this.run.revealedThisTurn++;
+
+    if (cell.card.type === DUNGEON_TEMPLATES.enemy) {
+      this.run.revealedEnemiesCount++;
+    }
 
     // Items are picked up only when the player clicks the revealed item cell.
   }
@@ -135,6 +140,10 @@ export class GameState {
     return this.run.dungeon.grid.every(
       cell => !cell.revealed || cell.card.type !== DUNGEON_TEMPLATES.enemy || cell.card.defeated
     );
+  }
+
+  isLastRoom() {
+    return this.run.roomsCleared + 1 >= this.run.totalRooms;
   }
 
   advanceRoom() {

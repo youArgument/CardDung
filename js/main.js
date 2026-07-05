@@ -117,6 +117,13 @@ const Game = {
     document.getElementById('card-popup').addEventListener('click', (e) => {
       if (e.target.id === 'card-popup') this.hubUI.hidePopup();
     });
+
+    // Exit popup
+    document.getElementById('exit-popup').addEventListener('click', (e) => {
+      if (e.target.id === 'exit-popup') this.hideExitPopup();
+    });
+    document.getElementById('btn-exit-continue').addEventListener('click', () => this.onExitContinue());
+    document.getElementById('btn-exit-hub').addEventListener('click', () => this.onExitToHub());
   },
 
   setupDragDrop(handEl, gridEl) {
@@ -212,6 +219,7 @@ const Game = {
     this.state.startRun();
     this.showScreen('dungeon');
     this.renderDungeon();
+    this.updateRoomProgress();
     HUD.update(this.state);
   },
 
@@ -240,9 +248,13 @@ const Game = {
     // State safety: UI sometimes re-renders mid-flow.
     const isDomEnemy = cell.element && cell.element.classList.contains('enemy-card');
 
-    // Exit flow: player must click the revealed door card to leave.
+    // Exit flow: last room → auto-victory; otherwise → popup.
     if (cell.revealed && cell.card.type === DUNGEON_TEMPLATES.exit) {
-      this.onEscape();
+      if (this.allEnemiesDefeated() && this.state.isLastRoom()) {
+        this.onVictory();
+      } else {
+        this.showExitPopup();
+      }
       return;
     }
 
@@ -294,6 +306,7 @@ const Game = {
       GridUI.updateCell(cell);
       HUD.update(this.state);
       this.advanceWorldTick();
+      if (!this.state.isDead() && this.allEnemiesDefeated()) this.onAllEnemiesDefeated();
       return;
     }
 
@@ -420,9 +433,8 @@ const Game = {
     // Tick: after any action, enemies react.
     this.advanceWorldTick();
 
-    if (this.allEnemiesDefeated()) {
-      // Auto-advance between rooms is not driven by an explicit turn.
-      // Progress only when the player reaches an exit (revealed).
+    if (!this.state.isDead() && this.allEnemiesDefeated()) {
+      this.onAllEnemiesDefeated();
     }
   },
 
@@ -471,6 +483,86 @@ const Game = {
     this.advanceWorldTick();
   },
 
+  onAllEnemiesDefeated() {
+    const run = this.state.run;
+    this.updateRoomProgress();
+    GridUI.render(run.dungeon, this.state, document.getElementById('dungeon-grid'));
+    HandUI.render(this.state, document.getElementById('hand-container'));
+    HUD.update(this.state);
+  },
+
+  showExitPopup() {
+    const run = this.state.run;
+    const title = document.getElementById('exit-popup-title');
+    const desc = document.getElementById('exit-popup-desc');
+    const continueBtn = document.getElementById('btn-exit-continue');
+    const hubBtn = document.getElementById('btn-exit-hub');
+
+    if (this.allEnemiesDefeated()) {
+      if (this.state.isLastRoom()) {
+        title.textContent = 'Dungeon Cleared!';
+        desc.textContent = 'All rooms cleared. What now?';
+        continueBtn.textContent = 'Claim Rewards';
+        hubBtn.textContent = 'To Hub';
+      } else {
+        title.textContent = 'Room Cleared';
+        desc.textContent = `Room ${run.roomsCleared + 1}/${run.totalRooms}`;
+        continueBtn.textContent = 'Next Room';
+        hubBtn.textContent = 'To Hub';
+      }
+    } else {
+      title.textContent = 'Exit Door';
+      desc.textContent = 'Enemies still alive!';
+      continueBtn.textContent = 'Escape';
+      hubBtn.textContent = 'To Hub';
+    }
+
+    document.getElementById('exit-popup').classList.remove('hidden');
+  },
+
+  hideExitPopup() {
+    document.getElementById('exit-popup').classList.add('hidden');
+  },
+
+  onExitContinue() {
+    this.hideExitPopup();
+
+    if (this.allEnemiesDefeated()) {
+      const run = this.state.run;
+      if (this.state.isLastRoom()) {
+        // Dungeon complete — show rewards
+        this.onVictory();
+      } else {
+        // Advance to next room
+        this.state.advanceRoom();
+        this.updateRoomProgress();
+        GridUI.render(run.dungeon, this.state, document.getElementById('dungeon-grid'));
+        HandUI.render(this.state, document.getElementById('hand-container'));
+        HUD.update(this.state);
+      }
+    } else {
+      // Enemies still alive — escape to hub
+      this.onEscape();
+    }
+  },
+
+  onExitToHub() {
+    this.hideExitPopup();
+    this.onEscape();
+  },
+
+  updateRoomProgress() {
+    const run = this.state.run;
+    const roomProgress = document.getElementById('room-progress');
+    const roomFill = document.getElementById('room-progress-fill');
+    if (roomProgress) {
+      roomProgress.textContent = `Room ${run.roomsCleared + 1}/${run.totalRooms}`;
+    }
+    if (roomFill) {
+      roomFill.style.width = `${((run.roomsCleared + 1) / run.totalRooms) * 100}%`;
+    }
+  },
+
   advanceWorldTick() {
     // After each player action, all revealed alive enemies deal damage.
     this.enemiesAttack();
@@ -496,37 +588,12 @@ const Game = {
   },
 
   allEnemiesDefeated() {
-    return this.state.run.dungeon.grid.every(
+    const run = this.state.run;
+    // At least one enemy must have been revealed for the room to be "clearable"
+    if (run.revealedEnemiesCount === 0) return false;
+    return run.dungeon.grid.every(
       cell => !cell.revealed || cell.card.type !== DUNGEON_TEMPLATES.enemy || cell.card.defeated
     );
-  },
-
-  checkRoomProgress() {
-    const run = this.state.run;
-    if (this.allEnemiesDefeated()) {
-      // Check if exit exists
-      const hasExit = run.dungeon.grid.some(
-        c => c.revealed && c.card.type === DUNGEON_TEMPLATES.exit
-      );
-
-      if (!hasExit) {
-        this.state.advanceRoom();
-        // Update room progress UI
-        const roomProgress = document.getElementById('room-progress');
-        if (roomProgress) {
-          roomProgress.textContent = `Room ${run.roomsCleared + 1}/${run.totalRooms}`;
-        }
-        const roomFill = document.getElementById('room-progress-fill');
-        if (roomFill) {
-          roomFill.style.width = `${(run.roomsCleared / run.totalRooms) * 100}%`;
-        }
-
-        // Re-render grid for new room
-        GridUI.render(run.dungeon, this.state, document.getElementById('dungeon-grid'));
-        HandUI.render(this.state, document.getElementById('hand-container'));
-        HUD.update(this.state);
-      }
-    }
   },
 
   renderDungeon() {
@@ -696,12 +763,20 @@ const Game = {
     const btn = document.getElementById('btn-update-reload');
     if (btn) {
       btn.addEventListener('click', () => {
-        // Clear caches, update stored version, reload
-        caches.keys().then(keys => {
-          Promise.all(keys.map(key => caches.delete(key)));
-        });
         localStorage.removeItem('carddung-version');
-        window.location.reload();
+        // Unregister SW, clear all caches, then reload
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(regs => {
+            Promise.all(regs.map(r => r.unregister()))
+              .then(() => caches.keys())
+              .then(keys => Promise.all(keys.map(key => caches.delete(key))))
+              .then(() => window.location.reload());
+          });
+        } else {
+          caches.keys().then(keys =>
+            Promise.all(keys.map(key => caches.delete(key)))
+          ).then(() => window.location.reload());
+        }
       });
     }
   }
