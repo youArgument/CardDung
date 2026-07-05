@@ -71,8 +71,9 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
 
 - PWA update notifications
   - Native SW `updatefound` scheme failed on mobile — replaced with VERSION-check scheme.
-  - Current: `index.html` never cached (always from server). On load, `main.js` fetches `VERSION?nocache=...` from network, compares with cached VERSION via `caches.match()`. If different — shows update banner (`js/main.js`, `sw.js`).
-  - Banner button clears all caches and calls `window.location.reload()` (`js/main.js`).
+  - Current: `index.html` cached as offline fallback, SW fetches network-first. On load, `main.js` fetches `VERSION?nocache=...` from network, compares with `localStorage` version. If different — shows update banner (`js/main.js`, `sw.js`).
+  - Banner button clears all caches + `localStorage` version key → reload (`js/main.js`).
+  - `updateMenu()` also uses `VERSION?nocache=...` to always display current server version.
 
 - HTTPS + Nginx + Let's Encrypt
   - Added Nginx reverse proxy (`nginx.Dockerfile`, `nginx.conf`, `nginx-http.conf`).
@@ -87,6 +88,7 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
   - Hand cards: single row, no fan effect — removed rotate transform from `HandUI.render`, updated CSS (`js/ui/hand.js`, `css/style.css`).
   - Moved HUB button to center of top HUD panel (`index.html`, `css/style.css`, `js/ui/hub.js`).
   - Removed END TURN button and action bar (`index.html`, `css/style.css`, `js/main.js`).
+  - Removed player portrait, star-bar, energy/floor badges from dungeon HUD (`index.html`, `css/style.css`).
 
 - Deck limit
   - Active Deck limit: 12 → 5 cards (`js/engine/hub.js`, `js/ui/hub.js`, `index.html`).
@@ -116,7 +118,7 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
 ├─ manifest.json
 ├─ package.json
 ├─ package-lock.json
-├─ sw.js                          # Service Worker (PWA caching, no index.html cache)
+├─ sw.js                          # Service Worker (PWA caching, offline fallback)
 ├─ vitest.config.js
 ├─ assets/
 │  └─ images/
@@ -157,7 +159,7 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
 ```
 
 ### Where the main gameplay logic lives
-- `js/main.js`: binds UI events (click/touch/drag), handles dungeon-grid click flow, base-hit/miss logic, VERSION-based PWA update check, and calls `advanceWorldTick()` after player actions.
+- `js/main.js`: binds UI events (click/touch/drag), handles dungeon-grid click flow, base-hit/miss logic, VERSION-based PWA update check (localStorage), and calls `advanceWorldTick()` after player actions.
 - `js/engine/state.js`: run lifecycle, reveal logic, item collection into hand, and stamina rules.
 - `js/engine/dungeon.js`: dungeon generation / reveal rules / enemy placement.
 - `js/engine/combat.js`: play-card effects and stamina costs.
@@ -166,12 +168,13 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
 ### Deployment
 - `npm run deploy` — builds all Docker services, increments VERSION, starts containers.
 - `https://game.you-argument.ru` — public HTTPS URL (Let's Encrypt, auto-renew needed before expiry).
-- PWA update: `index.html` always loads from server → `main.js` compares network VERSION with cached VERSION → shows banner if different → user clicks "Обновить" → caches cleared → reload.
+- PWA update: `index.html` cached as offline fallback, network-first. `main.js` compares network VERSION with localStorage → shows banner if different → user clicks "Обновить" → caches + localStorage cleared → reload.
 - `.gitignore` excludes `node_modules/` and `certs/`.
 
 ### Key Decisions
 - Chose Let's Encrypt over Cloudflare Tunnel for production HTTPS.
-- Replaced native PWA `updatefound` + `skipWaiting` with VERSION-check scheme (more reliable on mobile).
+- PWA update: VERSION-check via localStorage (reliable on mobile, no banner loops).
+- SW caching: `index.html` cached as offline fallback, VERSION never cached.
 - Two-step Nginx: HTTP-only for certbot challenge, then HTTPS with certificate.
 - Active Deck limit: 5 cards (tighter, more strategic).
 - Hand cards survive escape (transfer to collection), lost on death.
