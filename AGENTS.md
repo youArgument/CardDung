@@ -65,6 +65,29 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
 
 - Hand→collection transfer on escape; hand lost on death.
 
+### What was done (v0.1.38 — character classes, artifacts, menu rework)
+- Character classes (Warrior, Mage, Rogue, Beggar) with unique starting stats, decks, and artifacts.
+  - `js/data/classes.js`: class definitions with strength/agility/intelligence/will/vitality.
+  - **Menu screen** shows detailed class picker on first launch.
+  - First-time flow: compact 2×2 grid → tap class → full-screen detail page with stats/deck preview (each card shows sprite, name, cost, description)/artifact → red "CHOOSE" button or "← Back".
+  - Returning player flow: stats + current class display + red **"CONTINUE"** button (→ hub) + small gray **"Start New Game"** (→ confirmation popup → clear localStorage → reload).
+  - `selectedClass` persisted in `SaveSystem` (localStorage); changing class resets all progress.
+  - Confirmation popup for destructive actions (new game, class change).
+- Stats apply to run: vitality → HP, strength → damage bonus (floor(strength/2)).
+  - Warrior: 8 STR, 8 VIT → 8 HP, +4 dmg. Deck: strike, heavy_slash, shield, bash, parry.
+  - Mage: 2 STR, 3 VIT → 3 HP, +1 dmg. Deck: fire_bolt, frost, mana_shield, arcane_missile.
+  - Rogue: 4 STR, 5 VIT → 5 HP, +2 dmg. Deck: dagger, dagger, poison, dodge, backstab.
+  - Beggar: 1 all → 1 HP, +0 dmg. Empty deck.
+- Artifact system with 3 unique relics:
+  - Iron Belt (Warrior): +2 armor at start of each room (`state.js:startRoom()`).
+  - Tome (Mage): first card each turn costs 0 stamina (`combat.js:playCard(freeCost)`, reset in `startNewTurn()`).
+  - Rogue's Cloak (Rogue): draw 1 card on enemy defeat (`main.js` after base hits and card plays).
+  - Beggar: no artifact (hard mode).
+- 9 new card templates: heavy_slash, shield, parry, fire_bolt, frost, mana_shield, arcane_missile, dagger, backstab.
+- i18n (EN/RU) for class names, descriptions, artifacts, new cards, confirm popups, menu buttons.
+- Hub "The Descent" directly starts dungeon with the saved class (no class picker in hub).
+- `SaveSystem` extended: saves/loads `selectedClass`.
+
 ### What was done (v0.1.37 — sequential dungeons, i18n)
 - Sequential dungeon system (1–5 rooms)
   - `state.js`: `totalRooms` = 1–5, `revealedEnemiesCount` tracker, `isLastRoom()` helper.
@@ -99,7 +122,7 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
 ├─ assets/images/                 # PWA icons (192, 512)
 ├─ css/style.css                  # All styles including .lang-selector
 ├─ js/
-│  ├─ data/                      # cards.js, dungeon.js, enemies.js, upgrades.js
+│  ├─ data/                      # cards.js, classes.js, dungeon.js, enemies.js, upgrades.js
 │  ├─ engine/                    # card.js, combat.js, deck.js, dungeon.js, hub.js, state.js
 │  ├─ system/                    # audio.js, save.js, i18n.js (EN/RU translations)
 │  └─ ui/                        # grid.js, hand.js, hub.js, hud.js

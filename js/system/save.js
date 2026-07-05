@@ -2,6 +2,7 @@ export class SaveSystem {
   static save(state) {
     const data = {
       gold: state.player.gold,
+      selectedClass: state.selectedClassId,
       activeDeck: state.activeDeck,
       collection: state.collection,
       upgrades: state.upgrades,

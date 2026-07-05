@@ -9,7 +9,8 @@ import { GridUI } from './ui/grid.js';
 import { HandUI } from './ui/hand.js';
 import { CombatEngine } from './engine/combat.js';
 import { DUNGEON_TEMPLATES } from './data/dungeon.js';
-import { PLAYER_CARDS } from './data/cards.js';
+import { PLAYER_CARDS, loadRemoteCards } from './data/cards.js';
+import { CLASSES } from './data/classes.js';
 import { t, setLanguage, applyTranslations, getLanguage } from './system/i18n.js';
 
 const Game = {
@@ -20,7 +21,10 @@ const Game = {
   selectedHandCard: null,
   clientVersion: null,
 
-  init() {
+  async init() {
+    // Load cards from server (falls back to built-in if offline).
+    await loadRemoteCards();
+
     this.state = new GameState();
     this.audio = new AudioSystem();
     this.hub = new HubEngine(this.state);
@@ -30,6 +34,7 @@ const Game = {
     const saved = SaveSystem.loadStats();
     if (saved) {
       this.state.player.gold = saved.gold ?? 20;
+      this.state.selectedClassId = saved.selectedClass ?? null;
       this.state.activeDeck = saved.activeDeck ?? ['strike', 'strike', 'defend', 'defend', 'bash'];
       this.state.collection = saved.collection ?? [];
       this.state.upgrades = saved.upgrades ?? {};
@@ -62,13 +67,6 @@ const Game = {
     // Language switch
     document.getElementById('btn-lang-en').addEventListener('click', () => this.switchLang('en'));
     document.getElementById('btn-lang-ru').addEventListener('click', () => this.switchLang('ru'));
-
-    // Menu
-    document.getElementById('btn-to-hub').addEventListener('click', () => {
-      this.audio.playSelect();
-      this.showScreen('hub');
-      this.hubUI.updateHub();
-    });
 
     // Game Over → Hub
     document.querySelectorAll('#gameover-screen .btn-primary').forEach(btn => {
@@ -130,6 +128,15 @@ const Game = {
     });
     document.getElementById('btn-exit-continue').addEventListener('click', () => this.onExitContinue());
     document.getElementById('btn-exit-hub').addEventListener('click', () => this.onExitToHub());
+
+    // Generic confirmation popup
+    document.getElementById('class-confirm-popup').addEventListener('click', (e) => {
+      if (e.target.id === 'class-confirm-popup') this.hideConfirm();
+    });
+    document.getElementById('btn-confirm-yes').addEventListener('click', () => {
+      if (this._confirmCallback) this._confirmCallback();
+    });
+    document.getElementById('btn-confirm-no').addEventListener('click', () => this.hideConfirm());
   },
 
   setupDragDrop(handEl, gridEl) {
@@ -144,11 +151,13 @@ const Game = {
       dragCard = cardEl;
       didDrag = false;
 
-      // Only attack cards should be played via drag & drop.
+      // Cards that need manual targeting can be dragged.
       const uuid = dragCard.dataset.uuid;
       const run = this.state.run;
       const card = run?.deck?.hand?.find(c => c.uuid === uuid);
-      dragTypeAllowed = !!card && card.type === 'attack' || card.type === 'attack-all';
+      if (!card) { dragTypeAllowed = false; return; }
+      const tm = card.targetMode || '';
+      dragTypeAllowed = tm.includes('target') || tm.includes('auto') || card.type === 'attack' || card.type === 'attack-all';
       const touch = e.touches ? e.touches[0] : e;
 
       setTimeout(() => {
@@ -221,8 +230,10 @@ const Game = {
 
   // ===== DUNGEON =====
   enterDungeon() {
+    const classId = this.state.selectedClassId;
+    if (!classId || !CLASSES[classId]) return;
     this.audio.playSelect();
-    this.state.startRun();
+    this.state.startRun(classId);
     this.showScreen('dungeon');
     this.renderDungeon();
     this.updateRoomProgress();
@@ -302,10 +313,7 @@ const Game = {
       const base = 2 + (run.player.strength || 0);
       cell.card.hp -= base;
       if (cell.card.hp <= 0) {
-        cell.card.defeated = true;
-        cell.card.hp = 0;
-        run.player.gold += cell.card.gold;
-        run.enemiesSlain++;
+        CombatEngine.defeatEnemy(cell, run);
       }
       GridUI.animateHit(cell);
       GridUI.showDamage(cell, base, 'damage');
@@ -364,18 +372,32 @@ const Game = {
     this.selectedHandCard = uuid;
     HandUI.selectCard(uuid);
 
-    if (card.type === 'attack') {
+    const tm = card.targetMode || (card.type === 'attack-all' ? 'auto-enemy' : null) || (card.type === 'attack' ? 'auto-enemy' : null);
+
+    if (tm === 'auto-enemy') {
+      // Auto-target first alive enemy.
       const enemyCell = run.dungeon.grid.find(
         c => c.revealed && c.card.type === DUNGEON_TEMPLATES.enemy && !c.card.defeated
       );
       if (enemyCell) {
         this.playCardOnTarget(uuid, enemyCell.row, enemyCell.col);
       }
-    } else if (card.type === 'armor' || card.type === 'energy' || card.type === 'item') {
-      // Immediate-use cards: armor/energy/consumables.
+    } else if (tm === 'self' || card.type === 'item') {
+      // No targeting needed: armor/energy/buffs/items.
       this.playCardOnTarget(uuid, null, null);
+    } else if (tm === 'target-enemy' || tm === 'target-cell') {
+      // Requires manual targeting via drag/drop — do nothing on click.
     } else {
-      // Attack cards and anything else require targeting via drag/drop.
+      // Fallback: attack-like cards auto-target enemy.
+      const isAttackLike = card.effects?.some(e => e.action === 'damage' || e.action === 'damage_all');
+      if (isAttackLike) {
+        const enemyCell = run.dungeon.grid.find(
+          c => c.revealed && c.card.type === DUNGEON_TEMPLATES.enemy && !c.card.defeated
+        );
+        if (enemyCell) this.playCardOnTarget(uuid, enemyCell.row, enemyCell.col);
+      } else {
+        this.playCardOnTarget(uuid, null, null);
+      }
     }
   },
 
@@ -402,7 +424,14 @@ const Game = {
       return;
     }
 
-    const result = CombatEngine.playCard(card, targetCell, this.state);
+    // Tome artifact: first card each turn costs 0 stamina
+    let freeCost = false;
+    if (run.artifact?.id === 'tome' && run.firstCardFree) {
+      freeCost = true;
+      run.firstCardFree = false;
+    }
+
+    const result = CombatEngine.playCard(card, targetCell, this.state, freeCost);
     if (!result) {
       // Dungeon item cards are handled here.
       if (card.type === 'item') {
@@ -472,9 +501,8 @@ const Game = {
         run.deck.draw(itemCard.value);
         break;
       case 'maxEnergy':
-        // Energy mechanic disabled; convert to stamina instead.
-        p.maxStamina += itemCard.value * 10;
-        p.stamina = Math.min(p.stamina + itemCard.value * 10, p.maxStamina);
+        p.maxStamina += itemCard.value;
+        p.stamina = Math.min(p.stamina + itemCard.value, p.maxStamina);
         break;
       case 'stamina':
         p.stamina = Math.min(p.stamina + itemCard.value, p.maxStamina);
@@ -551,8 +579,57 @@ const Game = {
   },
 
   advanceWorldTick() {
+    // Process debuff ticks on all enemies (poison, nullify, etc.)
+    this.processDebuffTicks();
+
     // After each player action, all revealed alive enemies deal damage.
     this.enemiesAttack();
+
+    // Process run-level buffs (player_buff) — decrement and expire.
+    this.processBuffTicks();
+  },
+
+  processDebuffTicks() {
+    const run = this.state.run;
+    if (!run || !run.dungeon) return;
+    for (const cell of run.dungeon.grid) {
+      if (!cell.revealed || cell.card.type !== DUNGEON_TEMPLATES.enemy || cell.card.defeated) continue;
+      if (!cell.card.debuffs?.length) continue;
+
+      // Process each debuff.
+      const remaining = [];
+      for (const db of cell.card.debuffs) {
+        if (db.ticks <= 0) continue;
+        if (db.type === 'poison') {
+          cell.card.hp -= db.amount;
+          GridUI.showDamage(cell, db.amount, 'damage');
+          if (cell.card.hp <= 0) {
+            CombatEngine.defeatEnemy(cell, run);
+            GridUI.updateCell(cell);
+          }
+        }
+        db.ticks--;
+        if (db.ticks > 0) remaining.push(db);
+      }
+      cell.card.debuffs = remaining;
+    }
+  },
+
+  processBuffTicks() {
+    const run = this.state.run;
+    if (!run || !run.buffs) return;
+    for (const key of Object.keys(run.buffs)) {
+      run.buffs[key].ticks--;
+      if (run.buffs[key].ticks <= 0) delete run.buffs[key];
+    }
+  },
+
+  // Get effective player strength including active buffs.
+  getPlayerStrength() {
+    const run = this.state.run;
+    let str = run.player.strength || 0;
+    if (run.buffs?.str) str += run.buffs.str.value;
+    return str;
   },
 
   enemiesAttack() {
@@ -560,9 +637,19 @@ const Game = {
     const attacks = DungeonEngine.allEnemiesAttack(run.dungeon, run);
     if (attacks.length === 0) return;
 
+    // Check for nullify debuff on each attacker.
+    const validAttacks = [];
+    for (const attack of attacks) {
+      const hasNullify = attack.cell.card.debuffs?.some(d => d.type === 'nullify' && d.ticks > 0);
+      if (!hasNullify) {
+        validAttacks.push(attack);
+      }
+    }
+
+    if (validAttacks.length === 0) return;
     this.audio.playHit();
 
-    for (const attack of attacks) {
+    for (const attack of validAttacks) {
       const result = this.state.takeDamage(attack.damage);
       GridUI.showDamage(attack.cell, result.damage, 'damage');
       GridUI.animateHit(attack.cell);
@@ -610,12 +697,15 @@ const Game = {
       const card = PLAYER_CARDS[cardId];
       const el = document.createElement('div');
       el.className = 'reward-card';
+      const cardName = t(`card.${cardId}.name`, card.name);
+      const cardDesc = t(`card.${cardId}.desc`, card.desc);
       el.innerHTML = `
         <div class="card-sprite">${card.sprite}</div>
-        <div class="card-name">${card.name}</div>
-        <div class="card-desc">${card.desc}</div>
+        <div class="card-name">${cardName}</div>
+        <div class="card-desc">${cardDesc}</div>
         <div style="font-size:8px;color:#888;margin-top:4px">${card.cost}⚡</div>
       `;
+      el.dataset.cardId = cardId;
       el.addEventListener('click', () => {
         if (chosen >= 1) return;
         if (el.classList.contains('chosen')) {
@@ -637,9 +727,8 @@ const Game = {
   afterReward() {
     const chosen = document.querySelector('.reward-card.chosen');
     if (chosen) {
-      const name = chosen.querySelector('.card-name').textContent;
-      const cardId = Object.keys(PLAYER_CARDS).find(id => PLAYER_CARDS[id].name === name);
-      if (cardId) {
+      const cardId = chosen.dataset.cardId;
+      if (cardId && PLAYER_CARDS[cardId]) {
         this.state.collection.push(cardId);
         this.state.stats.cardsDiscovered.add(cardId);
       }
@@ -700,10 +789,7 @@ const Game = {
   },
 
   updateMenu() {
-    const s = this.state.stats;
-    document.getElementById('best-floor').textContent = s.bestFloor;
-    document.getElementById('total-runs').textContent = s.totalRuns;
-    document.getElementById('total-escapes').textContent = s.totalEscapes;
+    this.renderMenuDynamic();
 
     // Load and display version
     fetch('VERSION?nocache=' + Date.now())
@@ -713,6 +799,192 @@ const Game = {
         if (el) el.textContent = `v${v.trim()}`;
       })
       .catch(() => {});
+  },
+
+  renderMenuDynamic() {
+    const container = document.getElementById('menu-dynamic');
+    const hasClass = this.state.selectedClassId && CLASSES[this.state.selectedClassId];
+
+    if (hasClass) {
+      this.renderReturningView(container);
+    } else {
+      this.renderFirstTimeView(container);
+    }
+  },
+
+  renderReturningView(container) {
+    const s = this.state.stats;
+    const cls = CLASSES[this.state.selectedClassId];
+    const className = t(cls.nameKey);
+
+    container.innerHTML = `
+      <div class="menu-returning-view">
+        <div class="menu-stats">
+          <div class="stat-row"><span class="stat-label">${t('menu.best_floor')}</span><span class="stat-val">${s.bestFloor}</span></div>
+          <div class="stat-row"><span class="stat-label">${t('menu.runs')}</span><span class="stat-val">${s.totalRuns}</span></div>
+          <div class="stat-row"><span class="stat-label">${t('menu.escapes')}</span><span class="stat-val">${s.totalEscapes}</span></div>
+        </div>
+        <div class="current-class-display">
+          <span class="class-icon">${cls.sprite}</span>
+          <span>${className}</span>
+        </div>
+        <button id="btn-continue" class="btn-continue">${t('menu.continue')}</button>
+        <button id="btn-new-game" class="btn-new-game">${t('menu.new_game')}</button>
+      </div>
+    `;
+
+    document.getElementById('btn-continue').addEventListener('click', () => {
+      this.audio.playSelect();
+      this.showScreen('hub');
+      this.hubUI.updateHub();
+    });
+
+    document.getElementById('btn-new-game').addEventListener('click', () => {
+      this.showConfirm(
+        t('confirm.new_game_title'),
+        t('confirm.new_game_desc'),
+        () => this.onNewGameConfirm()
+      );
+    });
+  },
+
+  renderFirstTimeView(container) {
+    container.innerHTML = `
+      <div class="menu-class-picker-title">${t('class.picker.title')}</div>
+      <div class="menu-class-grid-compact" id="menu-class-grid-compact"></div>
+    `;
+
+    const grid = document.getElementById('menu-class-grid-compact');
+
+    for (const [id, cls] of Object.entries(CLASSES)) {
+      const el = document.createElement('div');
+      el.className = 'menu-class-card-compact';
+      const name = t(cls.nameKey);
+      el.innerHTML = `
+        <div class="menu-class-card-compact-icon">${cls.sprite}</div>
+        <div class="menu-class-card-compact-name">${name}</div>
+      `;
+      el.addEventListener('click', () => this.showClassDetail(id));
+      grid.appendChild(el);
+    }
+  },
+
+  showClassDetail(classId) {
+    const cls = CLASSES[classId];
+    if (!cls) return;
+    const container = document.getElementById('menu-dynamic');
+    const name = t(cls.nameKey);
+    const desc = t(cls.descKey);
+    const s = cls.stats;
+
+    const statsHtml = `<div class="class-detail-stats-row">
+      <span class="detail-stat">STR ${s.strength}</span>
+      <span class="detail-stat">AGI ${s.agility}</span>
+      <span class="detail-stat">INT ${s.intelligence}</span>
+      <span class="detail-stat">WIL ${s.will}</span>
+      <span class="detail-stat">VIT ${s.vitality}</span>
+    </div>`;
+
+    const deckHtml = cls.startingDeck.length > 0
+      ? `<div class="detail-deck-cards">
+          ${cls.startingDeck.map(cardId => {
+            const card = PLAYER_CARDS[cardId];
+            if (!card) return '';
+            const cardName = t(`card.${cardId}.name`, card.name);
+            const cardDesc = t(`card.${cardId}.desc`, card.desc);
+            return `<div class="detail-card">
+              <div class="detail-card-top">
+                <span class="detail-card-sprite">${card.sprite}</span>
+                <span class="detail-card-name">${cardName}</span>
+                <span class="detail-card-cost">${card.cost}⚡</span>
+              </div>
+              <div class="detail-card-desc">${cardDesc}</div>
+            </div>`;
+          }).join('')}
+        </div>`
+      : '<div style="color:#666;font-size:10px">—</div>';
+
+    let artifactHtml = '';
+    if (cls.artifact) {
+      const artName = t(cls.artifact.nameKey);
+      const artDesc = t(cls.artifact.descKey);
+      artifactHtml = `<div class="detail-artifact">
+        <span class="detail-artifact-icon">${cls.artifact.sprite}</span>
+        <div class="detail-artifact-info">
+          <div class="detail-artifact-name">${artName}</div>
+          <div class="detail-artifact-desc">${artDesc}</div>
+        </div>
+      </div>`;
+    } else {
+      artifactHtml = '<div style="color:#555;font-size:10px">—</div>';
+    }
+
+    container.innerHTML = `
+      <div class="class-detail-view">
+        <div class="class-detail-header">
+          <div class="class-detail-sprite">${cls.sprite}</div>
+          <div class="class-detail-name">${name}</div>
+          <div class="class-detail-desc">${desc}</div>
+        </div>
+        <div class="class-detail-section">
+          <div class="detail-section-title">Stats</div>
+          ${statsHtml}
+        </div>
+        <div class="class-detail-section">
+          <div class="detail-section-title">${t('class.picker.deck', cls.startingDeck.length)}</div>
+          ${deckHtml}
+        </div>
+        <div class="class-detail-section">
+          <div class="detail-section-title">${'Artifact'}</div>
+          ${artifactHtml}
+        </div>
+        <div class="btn-confirm-wrap">
+          <button id="btn-class-confirm" class="btn-continue">${t('class.picker.confirm')}</button>
+          <button id="btn-class-back" class="btn-new-game">${t('class.picker.back')}</button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('btn-class-confirm').addEventListener('click', () => this.confirmClass(classId));
+    document.getElementById('btn-class-back').addEventListener('click', () => this.renderFirstTimeView(container));
+  },
+
+  confirmClass(classId) {
+    this.state.selectedClassId = classId;
+    this.state.activeDeck = [...CLASSES[classId].startingDeck];
+    this.state.player.gold = 20;
+    this.state.collection = [];
+    this.state.upgrades = {};
+    this.state.stats = {
+      totalRuns: 0, totalEscapes: 0, bestFloor: 0, totalKills: 0,
+      cardsDiscovered: new Set(Object.keys(PLAYER_CARDS))
+    };
+    SaveSystem.save(this.state);
+    this.audio.playSelect();
+    this.showScreen('hub');
+    this.hubUI.updateHub();
+  },
+
+  onNewGameConfirm() {
+    localStorage.clear();
+    location.reload();
+  },
+
+  hasProgress() {
+    const s = this.state.stats;
+    return s.totalRuns > 0 || s.totalEscapes > 0 || s.bestFloor > 0 || this.state.collection.length > 0;
+  },
+
+  showConfirm(title, desc, callback) {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-desc').textContent = desc;
+    this._confirmCallback = callback;
+    document.getElementById('class-confirm-popup').classList.remove('hidden');
+  },
+
+  hideConfirm() {
+    document.getElementById('class-confirm-popup').classList.add('hidden');
+    this._confirmCallback = null;
   },
 
   showScreen(name) {
@@ -725,7 +997,7 @@ const Game = {
   switchLang(lang) {
     setLanguage(lang);
     this.applyLang();
-    if (this.state.screen === 'hub') this.hubUI.updateHub();
+    if (this.state.screen === 'hub') this.hubUI.reRenderAll();
   },
 
   applyLang() {
@@ -735,6 +1007,8 @@ const Game = {
     applyTranslations();
     this.updateMenu();
     if (this.state.run) {
+      GridUI.render(this.state.run.dungeon, this.state, document.getElementById('dungeon-grid'));
+      HandUI.render(this.state, document.getElementById('hand-container'));
       HUD.update(this.state);
       this.updateRoomProgress();
     }

@@ -17,11 +17,11 @@ export const UPGRADES = {
     maxLevel: 3, baseCost: 25, costScale: 20,
     effect: (level) => level
   },
-  startEnergy: {
-    id: 'startEnergy', name: 'Energy Reserve', icon: '⚡',
-    desc: '+1 starting energy per level',
+  startStamina: {
+    id: 'startStamina', name: 'Stamina Reserve', icon: '⚡',
+    desc: '+10 max stamina per level',
     maxLevel: 3, baseCost: 30, costScale: 20,
-    effect: (level) => level
+    effect: (level) => level * 10
   },
   cardDraw: {
     id: 'cardDraw', name: 'Card Draw', icon: '📖',

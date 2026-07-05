@@ -24,7 +24,6 @@ describe('GameState', () => {
     expect(state.run.player.stamina).toBeGreaterThan(0);
     expect(state.run.deck).toBeDefined();
     expect(state.run.dungeon).toBeDefined();
-    expect(state.run.turn).toBe(1);
   });
 
   it('startRun applies upgrades to player', () => {
@@ -38,9 +37,9 @@ describe('GameState', () => {
 
   it('startRoom sets up dungeon', () => {
     state.startRun();
-    const initialRun = state.run;
+    const initialDungeon = state.run.dungeon;
     state.startRoom();
-    expect(state.run.turn).toBe(1);
+    expect(state.run.dungeon).not.toBe(initialDungeon);
     expect(state.run.dungeon.grid).toBeDefined();
   });
 
@@ -77,15 +76,15 @@ describe('GameState', () => {
     expect(state.isDead()).toBe(false);
   });
 
-  it('startNewTurn resets energy and reveals', () => {
+  it('revealCell clamps stamina at 0 without draining HP', () => {
     state.startRun();
-    state.run.player.energy = 0;
-    state.run.revealedThisTurn = 2;
-    state.startNewTurn();
-    expect(state.run.turn).toBe(2);
-    // Energy mechanic disabled.
-    expect(state.run.player.energy).toBe(0);
-    expect(state.run.revealedThisTurn).toBe(0);
+    state.run.player.stamina = 3;
+    state.run.player.hp = state.run.player.maxHp;
+    const cell = state.run.dungeon.grid.find(c => !c.revealed);
+    if (!cell) return;
+    state.revealCell(cell);
+    expect(state.run.player.stamina).toBe(0);
+    expect(state.run.player.hp).toBe(state.run.player.maxHp); // HP unchanged
   });
 
   it('advanceRoom increments roomsCleared', () => {

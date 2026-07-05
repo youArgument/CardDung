@@ -13,6 +13,17 @@ services:
     container_name: carddung-server
     ports:
       - "4000:4000"
+    volumes:
+      - cards-data:/server/data
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: .
+      dockerfile: admin.Dockerfile
+    container_name: carddung-admin
+    ports:
+      - "5000:5000"
     restart: unless-stopped
 
   nginx:
@@ -28,6 +39,8 @@ services:
       - certbot-www:/var/www/certbot
     depends_on:
       - carddung
+      - carddung-server
+      - admin
     restart: unless-stopped
 
   certbot:
@@ -41,3 +54,4 @@ services:
 volumes:
   certbot-conf:
   certbot-www:
+  cards-data:

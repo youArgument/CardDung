@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Card Editor — Patient Rogue</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Courier New', monospace; background: #1a1a1a; color: #e8e4dc; min-height: 100vh; }
+    .container { max-width: 960px; margin: 0 auto; padding: 20px; }
+    h1 { font-size: 22px; letter-spacing: 3px; color: #c9a84c; margin-bottom: 6px; }
+    .subtitle { font-size: 11px; color: #555; margin-bottom: 20px; }
+
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .tab-btn { background: #252525; color: #888; border: 1px solid #333; padding: 8px 18px; cursor: pointer; font-family: inherit; font-size: 12px; letter-spacing: 1px; }
+    .tab-btn.active { color: #c9a84c; border-color: #c9a84c; }
+
+    .form-panel { display: none; background: #252525; border: 1px solid #333; padding: 20px; gap: 12px; flex-direction: column; }
+    .form-panel.active { display: flex; }
+    .form-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; min-width: 130px; flex: 1; }
+    .form-group label { font-size: 10px; color: #666; letter-spacing: 1px; }
+    .form-group input, .form-group select, .form-group textarea { background: #1a1a1a; border: 1px solid #444; color: #e8e4dc; padding: 8px; font-family: inherit; font-size: 13px; }
+    .form-group textarea { resize: vertical; min-height: 50px; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #c9a84c; outline: none; }
+    .checkbox-row { display: flex; align-items: center; gap: 6px; padding-bottom: 8px; }
+    .checkbox-row input[type=checkbox] { width: 16px; height: 16px; accent-color: #c9a84c; }
+
+    .btn-row { display: flex; gap: 8px; margin-top: 8px; }
+    .btn-save { background: #4a7c59; color: white; border: none; padding: 10px 24px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 1px; }
+    .btn-save:hover { background: #5a8c69; }
+    .btn-cancel { background: #333; color: #888; border: 1px solid #444; padding: 10px 24px; font-family: inherit; font-size: 13px; cursor: pointer; }
+    .btn-delete { background: #c0392b; color: white; border: none; padding: 6px 14px; font-family: inherit; font-size: 11px; cursor: pointer; }
+    .btn-edit { background: #5b7fa5; color: white; border: none; padding: 6px 14px; font-family: inherit; font-size: 11px; cursor: pointer; }
+    .btn-add-effect { background: #3a5a40; color: #8fbc8f; border: 1px solid #4a7c59; padding: 6px 12px; font-family: inherit; font-size: 11px; cursor: pointer; }
+    .btn-remove-effect { background: transparent; color: #c0392b; border: none; font-size: 16px; cursor: pointer; padding: 4px 8px; }
+
+    .preview-section { margin-top: 20px; display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+    .card-preview { width: 80px; height: 110px; background: #d4d0c8; border: 2px solid #e8e4dc; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+    .card-preview.rare { border-color: #5b7fa5; }
+    .card-preview.legendary { border-color: #c9a84c; box-shadow: 0 0 12px rgba(201,168,76,0.3); }
+    .card-preview .cost { position: absolute; top: -4px; right: -4px; background: #5b7fa5; color: white; font-size: 11px; font-weight: 800; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+    .card-preview .sprite { font-size: 28px; }
+    .card-preview .name { font-size: 9px; font-weight: 700; color: #2a2a2a; text-align: center; margin-top: 4px; }
+    .card-preview .desc { font-size: 7px; color: #666; text-align: center; padding: 0 4px; }
+
+    .code-block { background: #1a1a1a; border: 1px solid #333; padding: 12px; font-size: 11px; color: #888; white-space: pre-wrap; word-break: break-all; max-width: 400px; flex: 1; position: relative; }
+    .code-block .copy-btn { position: absolute; top: 6px; right: 6px; background: #333; color: #888; border: 1px solid #444; padding: 2px 8px; font-size: 9px; cursor: pointer; font-family: inherit; }
+
+    .card-list { display: flex; flex-direction: column; gap: 6px; }
+    .card-item { background: #1a1a1a; border: 1px solid #333; padding: 10px; display: flex; align-items: center; gap: 12px; font-size: 12px; }
+    .card-item:hover { border-color: #555; }
+    .card-item .item-sprite { font-size: 24px; width: 36px; text-align: center; }
+    .card-item .item-info { flex: 1; }
+    .card-item .item-id { color: #5b7fa5; font-weight: 700; }
+    .card-item .item-name { color: #e8e4dc; margin-left: 8px; }
+    .rarity-common { background: #333; padding: 2px 6px; font-size: 9px; color: #888; border-radius: 3px; }
+    .rarity-rare { background: #1a3a5c; padding: 2px 6px; font-size: 9px; color: #5b7fa5; border-radius: 3px; }
+    .rarity-legendary { background: #3a2a00; padding: 2px 6px; font-size: 9px; color: #c9a84c; border-radius: 3px; }
+    .card-item .item-actions { display: flex; gap: 4px; }
+
+    .status-bar { margin-top: 12px; padding: 8px; font-size: 11px; text-align: center; }
+    .status-ok { color: #4a7c59; }
+    .status-err { color: #c0392b; }
+
+    .search-input { background: #1a1a1a; border: 1px solid #444; color: #e8e4dc; padding: 8px 12px; font-family: inherit; font-size: 13px; width: 100%; margin-bottom: 12px; }
+    .search-input:focus { border-color: #c9a84c; outline: none; }
+
+    /* Effects builder */
+    .effects-section { background: #1a1a1a; border: 1px solid #333; padding: 12px; margin-top: 8px; }
+    .effect-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .effect-header h3 { font-size: 11px; color: #666; letter-spacing: 1px; }
+    .effects-list { display: flex; flex-direction: column; gap: 8px; }
+    .effect-row { background: #252525; border: 1px solid #333; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .effect-row select, .effect-row input { background: #1a1a1a; border: 1px solid #444; color: #e8e4dc; padding: 6px; font-family: inherit; font-size: 12px; min-width: 80px; }
+    .effect-label { font-size: 10px; color: #555; white-space: nowrap; }
+
+    .section-title { font-size: 11px; color: #666; letter-spacing: 1px; margin-top: 4px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CARD EDITOR v2</h1>
+    <div class="subtitle">Patient Rogue — Card Management with Effects System</div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="list">Card List</button>
+      <button class="tab-btn" data-tab="editor">New / Edit</button>
+    </div>
+
+    <!-- List Panel -->
+    <div id="panel-list" class="form-panel active">
+      <input type="text" class="search-input" id="search" placeholder="Search by id, name, or rarity...">
+      <div class="card-list" id="card-list"></div>
+      <div class="status-bar" id="list-status"></div>
+    </div>
+
+    <!-- Editor Panel -->
+    <div id="panel-editor" class="form-panel">
+      <input type="hidden" id="edit-id">
+
+      <div class="section-title">IDENTITY</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>ID (unique)</label>
+          <input type="text" id="card-id" placeholder="e.g. fire_bolt">
+        </div>
+        <div class="form-group">
+          <label>TARGET MODE</label>
+          <select id="card-targetMode">
+            <option value="auto-enemy">auto-enemy (first alive)</option>
+            <option value="target-enemy">target-enemy (drag-drop)</option>
+            <option value="target-cell">target-cell (any cell)</option>
+            <option value="self">self (no target)</option>
+          </select>
+        </div>
+        <div class="form-group" style="max-width:130px;flex:none">
+          <label>RARITY</label>
+          <select id="card-rarity">
+            <option value="common">Common</option>
+            <option value="rare">Rare</option>
+            <option value="legendary">Legendary</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" style="max-width:100px;flex:none">
+          <label>COST</label>
+          <input type="number" id="card-cost" min="0" value="1">
+        </div>
+        <div class="form-group" style="max-width:100px;flex:none">
+          <label>SPRITE</label>
+          <input type="text" id="card-sprite" placeholder="⚔️" maxlength="4" style="font-size:20px;text-align:center">
+        </div>
+        <div class="checkbox-row" style="flex:1;justify-content:flex-end">
+          <input type="checkbox" id="card-returnToHand">
+          <label for="card-returnToHand" style="color:#888;font-size:11px">returnToHand</label>
+        </div>
+      </div>
+
+      <div class="section-title">TEXTS (EN / RU)</div>
+      <div class="form-row">
+        <div class="form-group"><label>NAME EN</label><input type="text" id="card-name-en"></div>
+        <div class="form-group"><label>NAME RU</label><input type="text" id="card-name-ru"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>DESC EN</label><textarea id="card-desc-en"></textarea></div>
+        <div class="form-group"><label>DESC RU</label><textarea id="card-desc-ru"></textarea></div>
+      </div>
+
+      <!-- Effects Builder -->
+      <div class="effects-section">
+        <div class="effect-header">
+          <h3>EFFECTS (order matters)</h3>
+          <button class="btn-add-effect" id="btn-add-effect">+ Add Effect</button>
+        </div>
+        <div class="effects-list" id="effects-list"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-save" id="btn-save">SAVE CARD</button>
+        <button class="btn-cancel" id="btn-cancel">CANCEL</button>
+      </div>
+
+      <div class="preview-section">
+        <div class="card-preview" id="card-preview">
+          <div class="cost" id="prev-cost">1</div>
+          <div class="sprite" id="prev-sprite">🃏</div>
+          <div class="name" id="prev-name">—</div>
+          <div class="desc" id="prev-desc">—</div>
+        </div>
+        <div class="code-block" id="code-block">
+          <button class="copy-btn" id="btn-copy">COPY JSON</button>
+          <span id="code-content">// Start editing...</span>
+        </div>
+      </div>
+
+      <div class="status-bar" id="editor-status"></div>
+    </div>
+  </div>
+
+  <script>
+    const currentPort = window.location.port;
+    const API = (currentPort === '5000' || currentPort === '')
+        ? `http://${window.location.hostname}:4000/api/cards`
+        : '/api/cards';
+    let allCards = [];
+    let editingId = null;
+    let effectsList = [];
+
+    // Available actions and their params.
+    const ACTIONS = {
+      damage:            { label: 'Damage (single)', fields: [{key:'power',label:'Power',type:'number'}] },
+      damage_all:        { label: 'Damage All Enemies', fields: [{key:'power',label:'Power',type:'number'}] },
+      heal:              { label: 'Heal Player', fields: [{key:'amount',label:'Amount',type:'number'}] },
+      armor:             { label: 'Gain Armor', fields: [{key:'amount',label:'Amount',type:'number'}] },
+      stamina:           { label: 'Gain Stamina', fields: [{key:'amount',label:'Amount',type:'number'}] },
+      apply_debuff:      { label: 'Apply Debuff (poison)', fields: [
+        {key:'debuffType',label:'Type',type:'select',opts:['poison']},
+        {key:'amount',label:'Amt/tick',type:'number'},
+        {key:'ticks',label:'Ticks',type:'number'}] },
+      nullify_damage:    { label: 'Nullify Enemy Damage', fields: [{key:'ticks',label:'Ticks',type:'number'}] },
+      nullify_all_damage:{ label: 'Nullify All Enemy Dmg', fields: [{key:'ticks',label:'Ticks',type:'number'}] },
+      reflect_damage:    { label: 'Reflect Damage', fields: [{key:'amount',label:'Amount',type:'number'}] },
+      player_buff:       { label: 'Player Buff (temp)', fields: [
+        {key:'str',label:'+STR',type:'number'},
+        {key:'ticks',label:'Ticks',type:'number'}] },
+    };
+
+    // Tab switching.
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`panel-${btn.dataset.tab}`).classList.add('active');
+        if (btn.dataset.tab === 'list') loadCards();
+      });
+    });
+
+    // Load cards.
+    async function loadCards() {
+      const status = document.getElementById('list-status');
+      status.textContent = 'Loading...'; status.className = 'status-bar';
+      try {
+        const res = await fetch(API);
+        allCards = await res.json();
+        renderList(allCards);
+        status.textContent = `${allCards.length} cards loaded`;
+        status.className = 'status-bar status-ok';
+      } catch (e) {
+        status.textContent = `Error: ${e.message}`;
+        status.className = 'status-bar status-err';
+      }
+    }
+
+    // Render list.
+    function renderList(cards) {
+      const container = document.getElementById('card-list');
+      if (!cards.length) {
+        container.innerHTML = '<div style="color:#555;text-align:center;padding:20px">No cards found</div>';
+        return;
+      }
+      container.innerHTML = cards.map(c => `
+        <div class="card-item" data-id="${esc(c.id)}">
+          <span class="item-sprite">${c.sprite || '🃏'}</span>
+          <span class="item-info">
+            <span class="item-id">${esc(c.id)}</span>
+            <span class="item-name">${esc(c.nameEn || c.name || '')}</span>
+            ${c.targetMode ? `<br><small style="color:#555">target: ${esc(c.targetMode)} | effects: ${(c.effects||[]).length}</small>` : ''}
+          </span>
+          <span class="${'rarity-' + (c.rarity || 'common')}">${(c.rarity || 'common').toUpperCase()}</span>
+          <div class="item-actions">
+            <button class="btn-edit" onclick="editCard('${esc(c.id)}')">EDIT</button>
+            <button class="btn-delete" onclick="deleteCard('${esc(c.id)}')">DEL</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Search.
+    document.getElementById('search').addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      renderList(allCards.filter(c =>
+        c.id.toLowerCase().includes(q) ||
+        (c.nameEn||'').toLowerCase().includes(q) ||
+        (c.rarity||'').includes(q)
+      ));
+    });
+
+    // Edit card.
+    window.editCard = function(id) {
+      const card = allCards.find(c => c.id === id);
+      if (!card) return;
+      editingId = id;
+      document.getElementById('edit-id').value = id;
+      document.getElementById('card-id').value = card.id;
+      document.getElementById('card-id').readOnly = true;
+      document.getElementById('card-targetMode').value = card.targetMode || 'auto-enemy';
+      document.getElementById('card-rarity').value = card.rarity || 'common';
+      document.getElementById('card-cost').value = card.cost || 0;
+      document.getElementById('card-sprite').value = card.sprite || '';
+      document.getElementById('card-returnToHand').checked = !!card.returnToHand;
+      document.getElementById('card-name-en').value = card.nameEn || '';
+      document.getElementById('card-name-ru').value = card.nameRu || '';
+      document.getElementById('card-desc-en').value = card.descEn || '';
+      document.getElementById('card-desc-ru').value = card.descRu || '';
+
+      // Load effects.
+      effectsList = (card.effects && card.effects.length) ? JSON.parse(JSON.stringify(card.effects)) : [];
+      renderEffects();
+
+      switchTab('editor');
+      updatePreview();
+    };
+
+    window.deleteCard = async function(id) {
+      if (!confirm(`Delete "${id}"?`)) return;
+      try {
+        const res = await fetch(`${API}/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.ok) loadCards(); else alert('Error: ' + (data.error || ''));
+      } catch(e) { alert('Failed: ' + e.message); }
+    };
+
+    // Effects builder.
+    document.getElementById('btn-add-effect').addEventListener('click', () => {
+      effectsList.push({ action: 'damage', power: 5 });
+      renderEffects();
+      updatePreview();
+    });
+
+    function renderEffects() {
+      const container = document.getElementById('effects-list');
+      if (!effectsList.length) {
+        container.innerHTML = '<div style="color:#444;font-size:11px;text-align:center;padding:8px">No effects — card will use legacy fields</div>';
+        return;
+      }
+      container.innerHTML = '';
+      effectsList.forEach((efx, idx) => {
+        const row = document.createElement('div');
+        row.className = 'effect-row';
+
+        // Action select.
+        const sel = document.createElement('select');
+        sel.dataset.idx = idx;
+        for (const [k, v] of Object.entries(ACTIONS)) {
+          const opt = document.createElement('option');
+          opt.value = k; opt.textContent = v.label;
+          if (k === efx.action) opt.selected = true;
+          sel.appendChild(opt);
+        }
+        sel.addEventListener('change', () => { effectsList[idx].action = sel.value; renderEffects(); updatePreview(); });
+
+        // Params based on action.
+        const actionDef = ACTIONS[efx.action];
+        let fieldsHtml = '';
+        if (actionDef) {
+          for (const f of actionDef.fields) {
+            const val = efx[f.key] != null ? efx[f.key] : 0;
+            if (f.type === 'select') {
+              let opts = f.opts.map(o => `<option value="${o}" ${o==val?'selected':''}>${o}</option>`).join('');
+              fieldsHtml += `<span class="effect-label">${f.label}:</span><select data-efx="${idx}" data-key="${f.key}">${opts}</select>`;
+            } else {
+              fieldsHtml += `<span class="effect-label">${f.label}:</span><input type="number" value="${val}" data-efx="${idx}" data-key="${f.key}" style="width:60px">`;
+            }
+          }
+        }
+
+        // Remove button.
+        const rmBtn = document.createElement('button');
+        rmBtn.className = 'btn-remove-effect'; rmBtn.textContent = '×';
+        rmBtn.addEventListener('click', () => { effectsList.splice(idx, 1); renderEffects(); updatePreview(); });
+
+        row.innerHTML = `<span style="font-size:11px;color:#666">#${idx+1}</span>`;
+        row.appendChild(sel);
+        row.insertAdjacentHTML('beforeend', fieldsHtml);
+        row.appendChild(rmBtn);
+        container.appendChild(row);
+
+        // Bind param inputs.
+        row.querySelectorAll('[data-efx]').forEach(inp => {
+          inp.addEventListener('input', () => {
+            effectsList[parseInt(inp.dataset.efx)][inp.dataset.key] = inp.type === 'number' ? parseInt(inp.value) || 0 : inp.value;
+            updatePreview();
+          });
+        });
+      });
+    }
+
+    // Save card.
+    document.getElementById('btn-save').addEventListener('click', async () => {
+      const status = document.getElementById('editor-status');
+      const card = buildCardFromForm();
+      if (!card.id || !card.nameEn) {
+        status.textContent = 'ID and Name EN required'; status.className = 'status-bar status-err'; return;
+      }
+      try {
+        const res = await fetch(API, { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(card) });
+        const data = await res.json();
+        if (data.ok) {
+          status.textContent = `"${card.id}" saved`; status.className = 'status-bar status-ok';
+          setTimeout(() => { switchTab('list'); loadCards(); }, 500);
+        } else {
+          status.textContent = 'Error: ' + (data.error||''); status.className = 'status-bar status-err';
+        }
+      } catch(e) { status.textContent = 'Failed: ' + e.message; status.className = 'status-bar status-err'; }
+    });
+
+    function buildCardFromForm() {
+      const card = {
+        id: document.getElementById('card-id').value.trim(),
+        targetMode: document.getElementById('card-targetMode').value,
+        rarity: document.getElementById('card-rarity').value,
+        cost: parseInt(document.getElementById('card-cost').value) || 0,
+        sprite: document.getElementById('card-sprite').value.trim(),
+        returnToHand: document.getElementById('card-returnToHand').checked,
+        nameEn: document.getElementById('card-name-en').value.trim(),
+        nameRu: document.getElementById('card-name-ru').value.trim(),
+        descEn: document.getElementById('card-desc-en').value.trim(),
+        descRu: document.getElementById('card-desc-ru').value.trim(),
+      };
+
+      // Infer legacy type from effects for backward compat.
+      if (effectsList.length) {
+        card.effects = JSON.parse(JSON.stringify(effectsList));
+        const hasDmgAll = effectsList.some(e => e.action === 'damage_all');
+        const hasDmg = effectsList.some(e => e.action === 'damage');
+        const hasArmor = effectsList.some(e => e.action === 'armor');
+        const hasStamina = effectsList.some(e => e.action === 'stamina');
+        card.type = hasDmgAll ? 'attack-all' : hasDmg ? 'attack' : hasArmor ? 'armor' : hasStamina ? 'energy' : 'attack';
+      } else {
+        // No effects — use legacy type inference.
+        card.type = 'attack';
+      }
+
+      return card;
+    }
+
+    document.getElementById('btn-cancel').addEventListener('click', () => { switchTab('list'); clearForm(); });
+
+    function switchTab(name) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      document.querySelectorAll('.form-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
+    }
+
+    function clearForm() {
+      editingId = null; effectsList = [];
+      document.getElementById('card-id').value = '';
+      document.getElementById('card-id').readOnly = false;
+      document.getElementById('card-targetMode').value = 'auto-enemy';
+      document.getElementById('card-rarity').value = 'common';
+      document.getElementById('card-cost').value = 1;
+      document.getElementById('card-sprite').value = '';
+      document.getElementById('card-returnToHand').checked = false;
+      document.getElementById('card-name-en').value = '';
+      document.getElementById('card-name-ru').value = '';
+      document.getElementById('card-desc-en').value = '';
+      document.getElementById('card-desc-ru').value = '';
+      renderEffects(); updatePreview();
+    }
+
+    // Preview.
+    function updatePreview() {
+      const costVal = parseInt(document.getElementById('card-cost').value) || 0;
+      const spriteVal = document.getElementById('card-sprite').value.trim() || '🃏';
+      const nameVal = document.getElementById('card-name-en').value.trim() || '—';
+      const descVal = document.getElementById('card-desc-en').value.trim() || '—';
+
+      document.getElementById('prev-cost').textContent = costVal;
+      document.getElementById('prev-sprite').textContent = spriteVal;
+      document.getElementById('prev-name').textContent = nameVal;
+      document.getElementById('prev-desc').textContent = descVal;
+
+      const rarity = document.getElementById('card-rarity').value;
+      const preview = document.getElementById('card-preview');
+      preview.className = 'card-preview' + (rarity !== 'common' ? ` ${rarity}` : '');
+
+      // JSON export.
+      const card = buildCardFromForm();
+      document.getElementById('code-content').textContent = JSON.stringify(card, null, 2);
+    }
+
+    document.getElementById('btn-copy').addEventListener('click', () => {
+      navigator.clipboard.writeText(document.getElementById('code-content').textContent).then(() => {
+        const b = document.getElementById('btn-copy'); b.textContent = 'COPIED!'; setTimeout(() => b.textContent = 'COPY JSON', 1200);
+      });
+    });
+
+    // Bind all form inputs for live preview.
+    ['card-cost','card-sprite','card-name-en','card-desc-en','card-targetMode','card-rarity'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updatePreview);
+    });
+
+    function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    loadCards();
+  </script>
+</body>
+</html>

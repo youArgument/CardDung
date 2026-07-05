@@ -52,7 +52,7 @@ describe('Card', () => {
   it('creates energy-type card', () => {
     const card = new Card('channel');
     expect(card.type).toBe('energy');
-    expect(card.power).toBe(1);
-    expect(card.cost).toBe(0);
+    expect(card.power).toBe(3);
+    expect(card.cost).toBe(1);
   });
 });

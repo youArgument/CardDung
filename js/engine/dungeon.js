@@ -41,10 +41,6 @@ export class DungeonEngine {
     }
   }
 
-  // Check if player can reveal more cards this turn
-  static canReveal(state) {
-    return state.revealedThisTurn < state.maxRevealPerTurn;
-  }
 
   // Get all revealable cells (adjacent to revealed cells)
   static getRevealable(dungeon) {

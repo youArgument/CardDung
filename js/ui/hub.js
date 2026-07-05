@@ -65,6 +65,19 @@ export class HubUI {
     document.querySelectorAll('.hub-panel').forEach(p => p.classList.add('hidden'));
   }
 
+  reRenderAll() {
+    this.updateHub();
+    // Re-render any open panel
+    document.querySelectorAll('.hub-panel:not(.hidden)').forEach(panel => {
+      const panelName = panel.id.replace('panel-', '');
+      switch (panelName) {
+        case 'market': this.renderMarket(); break;
+        case 'deck': this.renderDeck(); break;
+        case 'safehouse': this.renderSafehouse(); break;
+      }
+    });
+  }
+
   // ===== MARKET =====
   renderMarket() {
     const hub = this.game.hub;
@@ -79,11 +92,13 @@ export class HubUI {
     for (const card of this.marketInventory) {
       const el = document.createElement('div');
       el.className = `market-item ${card.cost > gold ? 'cant-afford' : ''}`;
+      const name = t(`card.${card.id}.name`, card.name);
+      const desc = t(`card.${card.id}.desc`, card.desc);
       el.innerHTML = `
         <div class="market-sprite">${card.sprite}</div>
         <div class="market-info">
-          <div class="market-name">${card.name}</div>
-          <div class="market-desc">${card.desc}</div>
+          <div class="market-name">${name}</div>
+          <div class="market-desc">${desc}</div>
         </div>
         <div class="market-cost">◆ ${card.cost}</div>
       `;
@@ -122,9 +137,10 @@ export class HubUI {
 
       const el = document.createElement('div');
       el.className = 'deck-card in-deck';
+      const cardName = t(`card.${baseId}.name`, card.name);
       el.innerHTML = `
         ${card.sprite}
-        <div class="card-name-small">${card.name}${cardId.endsWith('+') ? ' ★' : ''}</div>
+        <div class="card-name-small">${cardName}${cardId.endsWith('+') ? ' ★' : ''}</div>
         ${deckCounts[baseId] > 1 ? `<div class="card-count">${deckCounts[baseId]}</div>` : ''}
       `;
 
@@ -159,9 +175,10 @@ export class HubUI {
 
       const el = document.createElement('div');
       el.className = 'deck-card can-add';
+      const cardName = t(`card.${cardId}.name`, card.name);
       el.innerHTML = `
         ${card.sprite}
-        <div class="card-name-small">${card.name}</div>
+        <div class="card-name-small">${cardName}</div>
         ${collCounts[cardId] > 1 ? `<div class="card-count">${collCounts[cardId]}</div>` : ''}
       `;
 
@@ -248,8 +265,8 @@ export class HubUI {
 
     const popup = document.getElementById('card-popup');
     document.getElementById('popup-sprite').textContent = card.sprite;
-    document.getElementById('popup-name').textContent = card.name;
-    document.getElementById('popup-desc').textContent = card.desc;
+    document.getElementById('popup-name').textContent = t(`card.${cardId}.name`, card.name);
+    document.getElementById('popup-desc').textContent = t(`card.${cardId}.desc`, card.desc);
     document.getElementById('popup-stats').textContent = `${t('deck.power', card.power)}`;
 
     const actions = document.getElementById('popup-actions');

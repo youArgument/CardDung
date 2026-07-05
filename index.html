@@ -23,12 +23,7 @@
           <button id="btn-lang-en" class="btn-lang active">EN</button>
           <button id="btn-lang-ru" class="btn-lang">RU</button>
         </div>
-        <div class="menu-stats">
-          <div class="stat-row"><span class="stat-label" data-i18n="menu.best_floor"></span><span id="best-floor" class="stat-val">0</span></div>
-          <div class="stat-row"><span class="stat-label" data-i18n="menu.runs"></span><span id="total-runs" class="stat-val">0</span></div>
-          <div class="stat-row"><span class="stat-label" data-i18n="menu.escapes"></span><span id="total-escapes" class="stat-val">0</span></div>
-        </div>
-        <button id="btn-to-hub" class="btn-primary" data-i18n="menu.enter_hub"></button>
+        <div id="menu-dynamic" class="menu-dynamic"></div>
       </div>
     </div>
 
@@ -178,6 +173,19 @@
         <div class="popup-actions">
           <button id="btn-exit-continue" class="btn-primary"></button>
           <button id="btn-exit-hub" class="btn-secondary" data-i18n="exit.to_hub"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Class Change Confirmation -->
+    <div id="class-confirm-popup" class="card-popup hidden">
+      <div class="popup-content">
+        <div class="popup-sprite">⚠️</div>
+        <div class="popup-name" id="confirm-title">Change Class?</div>
+        <div class="popup-desc" id="confirm-desc">All progress will be reset!</div>
+        <div class="popup-actions">
+          <button id="btn-confirm-yes" class="popup-btn add">YES</button>
+          <button id="btn-confirm-no" class="popup-btn close">CANCEL</button>
         </div>
       </div>
     </div>

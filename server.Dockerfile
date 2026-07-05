@@ -6,6 +6,7 @@ COPY server/package*.json ./
 RUN npm install
 
 COPY server ./
+COPY server/data/ data/
 
 EXPOSE 4000
 

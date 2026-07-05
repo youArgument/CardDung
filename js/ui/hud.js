@@ -36,15 +36,5 @@ export class HUD {
       const total = run.totalRooms;
       roomProgress.textContent = t('dungeon.room', current, total);
     }
-
-    // Reveal progress (stars)
-    const starBar = document.getElementById('star-bar');
-    if (!starBar) return;
-    starBar.innerHTML = '';
-    for (let i = 0; i < run.maxRevealPerTurn; i++) {
-      const star = document.createElement('div');
-      star.className = `star ${i < run.revealedThisTurn ? '' : 'empty'}`;
-      starBar.appendChild(star);
-    }
   }
 }

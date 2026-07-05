@@ -1,5 +1,7 @@
 import { Deck } from './deck.js';
 import { generateDungeon, DUNGEON_TEMPLATES } from '../data/dungeon.js';
+import { CLASSES } from '../data/classes.js';
+import { PLAYER_CARDS } from '../data/cards.js';
 
 export class GameState {
   constructor() {
@@ -10,45 +12,55 @@ export class GameState {
     this.upgrades = {};
     this.stats = {
       totalRuns: 0, totalEscapes: 0, bestFloor: 0, totalKills: 0,
-      cardsDiscovered: new Set(['strike', 'defend', 'bash', 'dodge'])
+      cardsDiscovered: new Set(['strike', 'defend', 'bash', 'dodge', 'heavy_slash', 'shield', 'parry', 'fire_bolt', 'frost', 'mana_shield', 'arcane_missile', 'dagger', 'backstab'])
     };
     this.run = null;
+    this.selectedClassId = null;
   }
 
-  startRun() {
+  startRun(classId) {
+    const classData = CLASSES[classId] || CLASSES.warrior;
+    this.selectedClassId = classId;
     const upg = this.upgrades;
     this.run = {
       player: {
-        hp: 8 + (upg.startHp || 0),
-        maxHp: 8 + (upg.startHp || 0),
+        hp: classData.stats.vitality + (upg.startHp || 0),
+        maxHp: classData.stats.vitality + (upg.startHp || 0),
         armor: 4 + (upg.startArmor || 0),
         maxArmor: 4 + (upg.startArmor || 0),
-        stamina: 100,
-        maxStamina: 100,
-        energy: 0,
-        maxEnergy: 0,
+        stamina: 100 + (upg.startStamina || 0) * 10,
+        maxStamina: 100 + (upg.startStamina || 0) * 10,
         gold: 0,
-        strength: 0
+        strength: Math.floor(classData.stats.strength / 2),
+        classStats: { ...classData.stats }
       },
       deck: new Deck(),
-        floor: 1,
-        currentRoom: 0,
-        totalRooms: 1 + Math.floor(Math.random() * 5), // 1-5 rooms
-        roomsCleared: 0,
-        revealedEnemiesCount: 0,
+      floor: 1,
+      currentRoom: 0,
+      totalRooms: 1 + Math.floor(Math.random() * 5),
+      roomsCleared: 0,
+      revealedEnemiesCount: 0,
       dungeon: null,
-      turn: 0,
-      revealedThisTurn: 0,
-      maxRevealPerTurn: 2,
       enemiesSlain: 0,
       cardsRevealed: 0,
       extraDraw: upg.cardDraw || 0,
-      mergeBonus: upg.mergeBonus || 0
+      mergeBonus: upg.mergeBonus || 0,
+      artifact: classData.artifact ? { ...classData.artifact } : null,
+      firstCardFree: false
     };
 
-    this.run.deck.initFromTemplates([...this.activeDeck]);
-    // Starting hand should reflect the deck configured in the Hub.
-    // We cap it to MAX_HAND (handled by Deck.draw).
+    // If class has no starting deck (e.g. Beggar), generate 3 random basic cards.
+    let deckCards = [...classData.startingDeck];
+    if (deckCards.length === 0) {
+      const playableIds = Object.keys(PLAYER_CARDS).filter(id => {
+        const c = PLAYER_CARDS[id];
+        return c.type === 'attack' || c.type === 'armor';
+      });
+      for (let i = 0; i < 3; i++) {
+        deckCards.push(playableIds[Math.floor(Math.random() * playableIds.length)]);
+      }
+    }
+    this.run.deck.initFromTemplates(deckCards);
     this.run.deck.draw(5 + this.run.extraDraw);
     this.startRoom();
     this.screen = 'dungeon';
@@ -57,25 +69,22 @@ export class GameState {
 
   startRoom() {
     this.run.dungeon = generateDungeon(this.run.floor, this.run.currentRoom);
-    this.run.turn = 1;
-    this.run.revealedThisTurn = 0;
+    this.run.firstCardFree = true;
+    // Iron Belt artifact: +2 armor at start of each room
+    if (this.run.artifact?.id === 'iron_belt') {
+      this.run.player.armor = Math.min(this.run.player.armor + 2, this.run.player.maxArmor);
+    }
   }
 
   revealCell(cell) {
     if (cell.revealed) return;
 
-    // Stamina cost for revealing
-    this.run.player.stamina -= 5;
-    if (this.run.player.stamina <= 0) {
-      const overflow = Math.abs(this.run.player.stamina);
-      this.run.player.stamina = 0;
-      this.run.player.hp -= overflow;
-    }
+    // Stamina cost for revealing — clamp at 0, no HP drain.
+    this.run.player.stamina = Math.max(0, this.run.player.stamina - 5);
 
     cell.revealed = true;
     this.run.dungeon.revealedCount++;
     this.run.cardsRevealed++;
-    this.run.revealedThisTurn++;
 
     if (cell.card.type === DUNGEON_TEMPLATES.enemy) {
       this.run.revealedEnemiesCount++;
@@ -107,22 +116,7 @@ export class GameState {
     return true;
   }
 
-  startNewTurn() {
-    this.run.turn++;
-    this.run.revealedThisTurn = 0;
-    // Energy mechanic disabled; no-op.
-    this.run.player.armor = 0;
-    // In tick mode, stamina is restored only via cards (e.g. food). No passive regen here.
-    
-    this.run.deck.discardHand();
-    this.run.deck.draw(3 + this.run.extraDraw);
 
-    if (this.upgrades.extraReveal && this.run.turn % 3 === 0) {
-      this.run.maxRevealPerTurn = 3;
-    } else {
-      this.run.maxRevealPerTurn = 2;
-    }
-  }
 
   takeDamage(amount) {
     let blocked = Math.min(amount, this.run.player.armor);

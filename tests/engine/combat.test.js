@@ -43,10 +43,23 @@ function makeCard(overrides = {}) {
 }
 
 describe('CombatEngine.playCard', () => {
-  it('returns null when not enough stamina', () => {
+  it('attack with low stamina plays at penalty (half damage)', () => {
     const gs = createGameState();
     gs.run.player.stamina = 0;
-    const card = makeCard({ cost: 1 });
+    const card = makeCard({ cost: 1, power: 6 });
+    gs.run.deck.hand.push(card);
+    const target = gs.run.dungeon.grid[0]; // rat hp=5
+    const result = CombatEngine.playCard(card, target, gs);
+    expect(result).not.toBeNull();
+    expect(result.penalty).toBe(true);
+    // Half damage: floor(6 / 2) = 3 (strength=0, mergeBonus=0)
+    expect(target.card.hp).toBe(5 - 3); // 2
+  });
+
+  it('armor with low stamina returns null', () => {
+    const gs = createGameState();
+    gs.run.player.stamina = 0;
+    const card = makeCard({ cost: 1, power: 4, type: 'armor' });
     const result = CombatEngine.playCard(card, null, gs);
     expect(result).toBeNull();
   });
@@ -112,15 +125,14 @@ describe('CombatEngine.playCard', () => {
     expect(result.effects[0].type).toBe('armor');
   });
 
-  it('energy card converts to stamina (energy mechanic disabled)', () => {
+  it('energy card adds stamina directly', () => {
     const gs = createGameState();
-    const card = makeCard({ power: 2, type: 'energy' });
+    const card = makeCard({ power: 3, type: 'energy' });
     gs.run.deck.hand.push(card);
     gs.run.player.stamina = 10;
     CombatEngine.playCard(card, null, gs);
-    // Energy mechanic disabled; power is converted to stamina (power * 10).
-    // cost=1 (default), so: 10 - 1 (cost) + 20 (power*10) = 29
-    expect(gs.run.player.stamina).toBe(29);
+    // cost=1 (default), so: 10 - 1 (cost) + 3 (power) = 12
+    expect(gs.run.player.stamina).toBe(12);
   });
 
   it('moves played card to discard pile', () => {

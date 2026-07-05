@@ -1,0 +1,274 @@
+[
+  {
+    "id": "strike",
+    "nameEn": "Strike",
+    "nameRu": "Удар",
+    "descEn": "Deal 5 damage",
+    "descRu": "Нанеси 5 урона",
+    "cost": 1,
+    "sprite": "⚔️",
+    "type": "attack",
+    "targetMode": "auto-enemy",
+    "rarity": "common",
+    "effects": [
+      { "action": "damage", "power": 5 }
+    ]
+  },
+  {
+    "id": "defend",
+    "nameEn": "Defend",
+    "nameRu": "Защита",
+    "descEn": "Gain 4 Armor",
+    "descRu": "Получи 4 брони",
+    "cost": 1,
+    "sprite": "🛡️",
+    "type": "armor",
+    "targetMode": "self",
+    "rarity": "common",
+    "effects": [
+      { "action": "armor", "amount": 4 }
+    ]
+  },
+  {
+    "id": "bash",
+    "nameEn": "Bash",
+    "nameRu": "Толчок",
+    "descEn": "Deal 8 damage",
+    "descRu": "Нанеси 8 урона",
+    "cost": 2,
+    "sprite": "🔨",
+    "type": "attack",
+    "targetMode": "auto-enemy",
+    "rarity": "rare",
+    "effects": [
+      { "action": "damage", "power": 8 }
+    ]
+  },
+  {
+    "id": "leech",
+    "nameEn": "Leech",
+    "nameRu": "Вампиризм",
+    "descEn": "Deal 3, Heal 2",
+    "descRu": "Нанеси 3, Лечись 2",
+    "cost": 1,
+    "sprite": "🧛",
+    "type": "attack",
+    "targetMode": "auto-enemy",
+    "rarity": "rare",
+    "effects": [
+      { "action": "damage", "power": 3 },
+      { "action": "heal", "amount": 2 }
+    ]
+  },
+  {
+    "id": "fireball",
+    "nameEn": "Fireball",
+    "nameRu": "Огненный Шар",
+    "descEn": "Deal 6 to all enemies",
+    "descRu": "6 урона всем врагам",
+    "cost": 2,
+    "sprite": "🔥",
+    "type": "attack-all",
+    "targetMode": "auto-enemy",
+    "rarity": "legendary",
+    "effects": [
+      { "action": "damage_all", "power": 6 }
+    ]
+  },
+  {
+    "id": "dodge",
+    "nameEn": "Dodge",
+    "nameRu": "Уклонение",
+    "descEn": "Gain 2 Armor",
+    "descRu": "Получи 2 брони",
+    "cost": 0,
+    "sprite": "💨",
+    "type": "armor",
+    "targetMode": "self",
+    "rarity": "common",
+    "effects": [
+      { "action": "armor", "amount": 2 }
+    ]
+  },
+  {
+    "id": "heavy",
+    "nameEn": "Heavy Blow",
+    "nameRu": "Тяжёлый Удар",
+    "descEn": "Deal 10 damage",
+    "descRu": "Нанеси 10 урона",
+    "cost": 2,
+    "sprite": "🪓",
+    "type": "attack",
+    "targetMode": "auto-enemy",
+    "rarity": "legendary",
+    "effects": [
+      { "action": "damage", "power": 10 }
+    ]
+  },
+  {
+    "id": "poison",
+    "nameEn": "Venom",
+    "nameRu": "Яд",
+    "descEn": "Deal 2, Apply Poison 2/tick for 3 ticks",
+    "descRu": "Нанеси 2, Яд 2/тик на 3 тика",
+    "cost": 1,
+    "sprite": "🗡️",
+    "type": "attack",
+    "targetMode": "auto-enemy",
+    "rarity": "rare",
+    "effects": [
+      { "action": "damage", "power": 2 },
+      { "action": "apply_debuff", "debuffType": "poison", "amount": 2, "ticks": 3 }
+    ]
+  },
+  {
+    "id": "channel",
+    "nameEn": "Channel",
+    "nameRu": "Канал",
+    "descEn": "Gain 3 Stamina",
+    "descRu": "Получи 3 стамины",
+    "cost": 1,
+    "sprite": "⚡",
+    "type": "energy",
+    "targetMode": "self",
+    "rarity": "common",
+    "effects": [
+      { "action": "stamina", "amount": 3 }
+    ]
+  },
+  {
+    "id": "heavy_slash",
+    "nameEn": "Heavy Slash",
+    "nameRu": "Тяжёлый Удар",
+    "descEn": "Deal 7 damage",
+    "descRu": "Нанеси 7 урона",
+    "cost": 1,
+    "sprite": "⚔️",
+    "type": "attack",
+    "targetMode": "auto-enemy",
+    "rarity": "rare",
+    "effects": [
+      { "action": "damage", "power": 7 }
+    ]
+  },
+  {
+    "id": "shield",
+    "nameEn": "Shield",
+    "nameRu": "Щит",
+    "descEn": "Gain 6 Armor",
+    "descRu": "Получи 6 брони",
+    "cost": 1,
+    "sprite": "🛡️",
+    "type": "armor",
+    "targetMode": "self",
+    "rarity": "rare",
+    "effects": [
+      { "action": "armor", "amount": 6 }
+    ]
+  },
+  {
+    "id": "parry",
+    "nameEn": "Parry",
+    "nameRu": "Парирование",
+    "descEn": "Gain 3 Armor",
+    "descRu": "Получи 3 брони",
+    "cost": 0,
+    "sprite": "🔄",
+    "type": "armor",
+    "targetMode": "self",
+    "rarity": "common",
+    "effects": [
+      { "action": "armor", "amount": 3 }
+    ]
+  },
+  {
+    "id": "fire_bolt",
+    "nameEn": "Fire Bolt",
+    "nameRu": "Огненная Стрела",
+    "descEn": "Deal 5 damage",
+    "descRu": "Нанеси 5 урона",
+    "cost": 1,
+    "sprite": "🔥",
+    "type": "attack",
+    "targetMode": "auto-enemy",
+    "rarity": "common",
+    "effects": [
+      { "action": "damage", "power": 5 }
+    ]
+  },
+  {
+    "id": "frost",
+    "nameEn": "Frost",
+    "nameRu": "Мороз",
+    "descEn": "Deal 4 damage",
+    "descRu": "Нанеси 4 урона",
+    "cost": 1,
+    "sprite": "❄️",
+    "type": "attack",
+    "targetMode": "auto-enemy",
+    "rarity": "common",
+    "effects": [
+      { "action": "damage", "power": 4 }
+    ]
+  },
+  {
+    "id": "mana_shield",
+    "nameEn": "Mana Shield",
+    "nameRu": "Магический Щит",
+    "descEn": "Gain 5 Armor",
+    "descRu": "Получи 5 брони",
+    "cost": 1,
+    "sprite": "🔵",
+    "type": "armor",
+    "targetMode": "self",
+    "rarity": "rare",
+    "effects": [
+      { "action": "armor", "amount": 5 }
+    ]
+  },
+  {
+    "id": "arcane_missile",
+    "nameEn": "Arcane Missile",
+    "nameRu": "Тайная Стрела",
+    "descEn": "Deal 8 damage",
+    "descRu": "Нанеси 8 урона",
+    "cost": 2,
+    "sprite": "✨",
+    "type": "attack",
+    "targetMode": "auto-enemy",
+    "rarity": "rare",
+    "effects": [
+      { "action": "damage", "power": 8 }
+    ]
+  },
+  {
+    "id": "dagger",
+    "nameEn": "Dagger",
+    "nameRu": "Кинжал",
+    "descEn": "Deal 3 damage",
+    "descRu": "Нанеси 3 урона",
+    "cost": 0,
+    "sprite": "🗡️",
+    "type": "attack",
+    "targetMode": "auto-enemy",
+    "rarity": "common",
+    "effects": [
+      { "action": "damage", "power": 3 }
+    ]
+  },
+  {
+    "id": "backstab",
+    "nameEn": "Backstab",
+    "nameRu": "Удар в Спину",
+    "descEn": "Deal 12 damage",
+    "descRu": "Нанеси 12 урона",
+    "cost": 2,
+    "sprite": "🔪",
+    "type": "attack",
+    "targetMode": "auto-enemy",
+    "rarity": "legendary",
+    "effects": [
+      { "action": "damage", "power": 12 }
+    ]
+  }
+]

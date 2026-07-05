@@ -6,27 +6,13 @@ function makeState(grid, overrides = {}) {
   return {
     run: {
       dungeon: { grid, cols: 4, rows: 5, ...overrides.dungeon },
-      revealedThisTurn: 0,
-      maxRevealPerTurn: 2,
-      player: { hp: 8, maxHp: 8, armor: 0, stamina: 100, energy: 3, gold: 0 },
+      player: { hp: 8, maxHp: 8, armor: 0, stamina: 100, gold: 0 },
       ...overrides
     }
   };
 }
 
 describe('DungeonEngine', () => {
-  describe('canReveal', () => {
-    it('returns true when under limit', () => {
-      const state = makeState([], { revealedThisTurn: 0, maxRevealPerTurn: 2 });
-      expect(DungeonEngine.canReveal(state.run)).toBe(true);
-    });
-
-    it('returns false when at limit', () => {
-      const state = makeState([], { revealedThisTurn: 2, maxRevealPerTurn: 2 });
-      expect(DungeonEngine.canReveal(state.run)).toBe(false);
-    });
-  });
-
   describe('getRevealable', () => {
     it('returns cells adjacent to revealed cells', () => {
       const dungeon = generateDungeon(1, 0);

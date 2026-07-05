@@ -1,5 +1,6 @@
 import { DungeonEngine } from '../engine/dungeon.js';
 import { DUNGEON_TEMPLATES } from '../data/dungeon.js';
+import { t } from '../system/i18n.js';
 
 export class GridUI {
   static render(dungeon, state, container) {
@@ -68,7 +69,7 @@ export class GridUI {
 
       const label = document.createElement('div');
       label.className = 'card-label';
-      label.textContent = card.name;
+      label.textContent = t(`enemy.${card.template}.name`, card.name);
       el.appendChild(label);
     } else if (card.type === DUNGEON_TEMPLATES.item) {
       el.classList.add('item-card');
@@ -81,7 +82,7 @@ export class GridUI {
 
       const label = document.createElement('div');
       label.className = 'card-label';
-      label.textContent = card.name;
+      label.textContent = t(`item.${card.template}.name`, card.name);
       el.appendChild(label);
     } else if (card.type === DUNGEON_TEMPLATES.exit) {
       el.classList.add('exit-card');
@@ -93,7 +94,7 @@ export class GridUI {
 
       const label = document.createElement('div');
       label.className = 'card-label';
-      label.textContent = card.name;
+      label.textContent = t('exit_card.name', card.name);
       el.appendChild(label);
     }
   }
