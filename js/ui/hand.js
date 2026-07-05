@@ -6,17 +6,12 @@ export class HandUI {
     container.innerHTML = '';
     const hand = run.deck.hand;
 
-    hand.forEach((card, i) => {
+    hand.forEach((card) => {
       const el = document.createElement('div');
       el.className = 'hand-card';
       el.dataset.uuid = card.uuid;
 
       if (run.player.stamina < card.cost) el.classList.add('unplayable');
-
-      const total = hand.length;
-      const mid = (total - 1) / 2;
-      const angle = (i - mid) * 5;
-      el.style.transform = `rotate(${angle}deg)`;
 
       el.innerHTML = `
         <div class="card-cost">${card.cost}</div>

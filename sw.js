@@ -1,8 +1,6 @@
-const CACHE_NAME = "patient-rogue-v5";
+const CACHE_NAME = "patient-rogue-v6";
 
 const ASSETS = [
-  "./",
-  "./index.html",
   "./manifest.json",
   "./css/style.css",
   "./js/main.js"
@@ -29,6 +27,12 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  // Never cache index.html — always load from server
+  if (event.request.url.endsWith("index.html") || event.request.url.endsWith("/")) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       return (
@@ -42,10 +46,4 @@ self.addEventListener("fetch", (event) => {
       );
     })
   );
-});
-
-self.addEventListener("message", (event) => {
-  if (event.data === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
 });

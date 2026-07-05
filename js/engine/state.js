@@ -5,7 +5,7 @@ export class GameState {
   constructor() {
     this.screen = 'menu';
     this.player = { gold: 20 };
-    this.activeDeck = ['strike', 'strike', 'strike', 'defend', 'defend', 'defend', 'bash', 'dodge'];
+    this.activeDeck = ['strike', 'strike', 'defend', 'defend', 'bash'];
     this.collection = [];
     this.upgrades = {};
     this.stats = {

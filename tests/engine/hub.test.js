@@ -52,8 +52,8 @@ describe('HubEngine', () => {
       expect(state.collection).not.toContain('fireball');
     });
 
-    it('returns false when deck is full (12)', () => {
-      state.activeDeck = Array(12).fill('strike');
+    it('returns false when deck is full (5)', () => {
+      state.activeDeck = Array(5).fill('strike');
       const result = hub.addToDeck('fireball');
       expect(result).toBe(false);
     });

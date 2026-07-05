@@ -33,8 +33,9 @@ export class HubUI {
       btn.addEventListener('click', () => this.closeAllPanels());
     });
 
-    // Hub leave button (from dungeon)
+    // Hub leave button (from dungeon — top panel)
     document.getElementById('btn-hub-leave').addEventListener('click', () => {
+      this.game.audio.playSelect();
       this.game.leaveToHub();
     });
   }
@@ -287,7 +288,7 @@ export class HubUI {
       const addBtn = document.createElement('button');
       addBtn.className = 'popup-btn add';
       addBtn.textContent = 'ADD TO DECK';
-      addBtn.disabled = this.game.state.activeDeck.length >= 12;
+      addBtn.disabled = this.game.state.activeDeck.length >= 5;
       addBtn.addEventListener('click', () => {
         if (this.game.hub.addToDeck(cardId)) {
           this.game.audio.playSelect();

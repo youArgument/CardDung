@@ -11,7 +11,7 @@ describe('GameState', () => {
   it('initializes with default values', () => {
     expect(state.screen).toBe('menu');
     expect(state.player.gold).toBe(20);
-    expect(state.activeDeck).toHaveLength(8);
+    expect(state.activeDeck).toHaveLength(5);
     expect(state.collection).toEqual([]);
     expect(state.upgrades).toEqual({});
   });

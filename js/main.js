@@ -17,7 +17,7 @@ const Game = {
   hub: null,
   hubUI: null,
   selectedHandCard: null,
-  newSWWorker: null,
+  clientVersion: null,
 
   init() {
     this.state = new GameState();
@@ -29,7 +29,7 @@ const Game = {
     const saved = SaveSystem.loadStats();
     if (saved) {
       this.state.player.gold = saved.gold ?? 20;
-      this.state.activeDeck = saved.activeDeck ?? ['strike', 'strike', 'strike', 'defend', 'defend', 'defend', 'bash', 'dodge'];
+      this.state.activeDeck = saved.activeDeck ?? ['strike', 'strike', 'defend', 'defend', 'bash'];
       this.state.collection = saved.collection ?? [];
       this.state.upgrades = saved.upgrades ?? {};
       this.state.stats = {
@@ -49,18 +49,11 @@ const Game = {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js').then(reg => {
         console.log('[SW] registered', reg.scope);
-        reg.addEventListener('updatefound', () => {
-          Game.newSWWorker = reg.installing;
-          Game.newSWWorker.addEventListener('statechange', () => {
-            if (Game.newSWWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('[SW] update available');
-              const banner = document.getElementById('update-banner');
-              if (banner) banner.classList.remove('hidden');
-            }
-          });
-        });
       }).catch(err => console.error('[SW] registration failed:', err));
     }
+
+    // Check for updates: fetch VERSION from network and compare with cached
+    this.checkForUpdate();
   },
 
   bindEvents() {
@@ -81,9 +74,6 @@ const Game = {
 
     // Reward
     document.getElementById('btn-reward-done').addEventListener('click', () => this.afterReward());
-
-    // Dungeon
-    document.getElementById('btn-end-turn').addEventListener('click', () => this.endTurn());
 
     // Dungeon grid
     const gridEl = document.getElementById('dungeon-grid');
@@ -226,6 +216,15 @@ const Game = {
   },
 
   leaveToHub() {
+    const run = this.state.run;
+    if (run) {
+      // Transfer remaining hand cards to collection
+      for (const card of run.deck.hand) {
+        if (card.id && PLAYER_CARDS[card.id]) {
+          this.state.collection.push(card.id);
+        }
+      }
+    }
     this.state.run = null;
     this.showScreen('hub');
     this.hubUI.updateHub();
@@ -496,14 +495,6 @@ const Game = {
     if (this.state.isDead()) setTimeout(() => this.onDefeat(), 600);
   },
 
-  endTurn() {
-    const run = this.state.run;
-    if (!run) return;
-
-    // Turns are optional in this mode: player manually reveals cells.
-    // Keep END TURN as a no-op so the dungeon doesn't auto-advance / enemies don't attack.
-  },
-
   allEnemiesDefeated() {
     return this.state.run.dungeon.grid.every(
       cell => !cell.revealed || cell.card.type !== DUNGEON_TEMPLATES.enemy || cell.card.defeated
@@ -616,6 +607,13 @@ const Game = {
     // Gold carries back to hub
     this.state.player.gold += run.player.gold;
 
+    // Transfer remaining hand cards to collection (they survive the run)
+    for (const card of run.deck.hand) {
+      if (card.id && PLAYER_CARDS[card.id]) {
+        this.state.collection.push(card.id);
+      }
+    }
+
     document.getElementById('esc-floor').textContent = run.floor;
     document.getElementById('esc-gold').textContent = run.player.gold;
     document.getElementById('esc-hp').textContent = `${run.player.hp}/${run.player.maxHp}`;
@@ -629,6 +627,9 @@ const Game = {
     const run = this.state.run;
     if (run.floor > this.state.stats.bestFloor) this.state.stats.bestFloor = run.floor;
     this.state.stats.totalKills += run.enemiesSlain;
+
+    // Player loses all remaining hand cards on death (no transfer to collection)
+    run.deck.hand = [];
 
     document.getElementById('go-floor').textContent = run.floor;
     document.getElementById('go-revealed').textContent = run.cardsRevealed;
@@ -668,16 +669,36 @@ const Game = {
   },
 
   // ===== PWA UPDATE =====
+  checkForUpdate() {
+    // Fetch VERSION from network (bypass cache) to get server version
+    fetch('./VERSION?nocache=' + Date.now(), { cache: 'no-store' })
+      .then(r => r.text())
+      .then(serverVersion => {
+        // Fetch cached VERSION to get client version
+        return caches.match('./VERSION').then(cached => {
+          if (cached) {
+            return cached.text().then(clientVersion => {
+              if (serverVersion.trim() !== clientVersion.trim()) {
+                console.log('[UPDATE] available:', clientVersion.trim(), '->', serverVersion.trim());
+                const banner = document.getElementById('update-banner');
+                if (banner) banner.classList.remove('hidden');
+              }
+            });
+          }
+        });
+      })
+      .catch(() => {});
+  },
+
   bindUpdateButton() {
     const btn = document.getElementById('btn-update-reload');
     if (btn) {
       btn.addEventListener('click', () => {
-        if (Game.newSWWorker) {
-          Game.newSWWorker.postMessage('SKIP_WAITING');
-        }
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          window.location.reload();
-        }, { once: true });
+        // Clear caches and reload
+        caches.keys().then(keys => {
+          Promise.all(keys.map(key => caches.delete(key)));
+        });
+        window.location.reload();
       });
     }
   }

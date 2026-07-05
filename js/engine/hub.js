@@ -35,9 +35,9 @@ export class HubEngine {
     return true;
   }
 
-  // Add card to active deck (max 12)
+  // Add card to active deck (max 5)
   addToDeck(cardId) {
-    if (this.state.activeDeck.length >= 12) return false;
+    if (this.state.activeDeck.length >= 5) return false;
     if (!this.state.collection.includes(cardId)) return false;
 
     this.state.activeDeck.push(cardId);
