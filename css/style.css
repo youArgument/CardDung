@@ -157,19 +157,6 @@ html, body {
   font-size: 13px; font-weight: 700; color: var(--accent-green);
   transition: opacity 0.3s;
 }
-.star-bar {
-  display: flex; gap: 3px;
-  justify-content: center;
-  padding: 4px 0;
-}
-.star {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  background: #c9a84c;
-  border: 1px solid #a08030;
-}
-.star.empty { background: #333; border-color: #444; }
-
 .hud-resources {
   display: flex; gap: 8px; align-items: center;
 }
@@ -177,36 +164,6 @@ html, body {
   font-size: 12px; font-weight: 700;
 }
 .resource.gold { color: var(--accent-gold); }
-.resource.energy { color: var(--accent-blue); }
-.resource.floor { color: var(--text-primary); }
-
-/* ===== PLAYER PORTRAIT ===== */
-.player-portrait-container {
-  padding: 8px 12px;
-  display: flex; justify-content: flex-start;
-}
-.player-portrait {
-  width: 64px; height: 80px;
-  background: var(--bg-card);
-  border: 3px solid var(--border-light);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  position: relative;
-  box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
-}
-.portrait-sprite { font-size: 32px; }
-.portrait-statuses {
-  position: absolute; bottom: -4px; right: -4px;
-  display: flex; gap: 2px;
-}
-.status-icon {
-  width: 16px; height: 16px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-dark);
-  border-radius: 2px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px;
-}
 
 /* ===== DUNGEON GRID ===== */
 .dungeon-grid {

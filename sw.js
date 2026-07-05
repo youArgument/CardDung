@@ -1,6 +1,7 @@
-const CACHE_NAME = "patient-rogue-v6";
+const CACHE_NAME = "patient-rogue-v7";
 
 const ASSETS = [
+  "./",
   "./manifest.json",
   "./css/style.css",
   "./js/main.js"
@@ -27,12 +28,21 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Never cache index.html — always load from server
+  // index.html: network-first, fallback to cache (offline support)
   if (event.request.url.endsWith("index.html") || event.request.url.endsWith("/")) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // VERSION: never cache, always from network
+  if (event.request.url.includes("VERSION")) {
     event.respondWith(fetch(event.request));
     return;
   }
 
+  // Other assets: cache-first
   event.respondWith(
     caches.match(event.request).then((cached) => {
       return (

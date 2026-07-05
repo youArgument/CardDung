@@ -652,7 +652,7 @@ const Game = {
     document.getElementById('total-escapes').textContent = s.totalEscapes;
 
     // Load and display version
-    fetch('VERSION')
+    fetch('VERSION?nocache=' + Date.now())
       .then(r => r.text())
       .then(v => {
         const el = document.getElementById('app-version');
@@ -670,22 +670,24 @@ const Game = {
 
   // ===== PWA UPDATE =====
   checkForUpdate() {
-    // Fetch VERSION from network (bypass cache) to get server version
+    const storedVersion = localStorage.getItem('carddung-version');
+
+    // Fetch VERSION from network to get server version
     fetch('./VERSION?nocache=' + Date.now(), { cache: 'no-store' })
       .then(r => r.text())
       .then(serverVersion => {
-        // Fetch cached VERSION to get client version
-        return caches.match('./VERSION').then(cached => {
-          if (cached) {
-            return cached.text().then(clientVersion => {
-              if (serverVersion.trim() !== clientVersion.trim()) {
-                console.log('[UPDATE] available:', clientVersion.trim(), '->', serverVersion.trim());
-                const banner = document.getElementById('update-banner');
-                if (banner) banner.classList.remove('hidden');
-              }
-            });
-          }
-        });
+        const sv = serverVersion.trim();
+
+        if (storedVersion && sv !== storedVersion) {
+          console.log('[UPDATE] available:', storedVersion, '->', sv);
+          const banner = document.getElementById('update-banner');
+          if (banner) banner.classList.remove('hidden');
+        }
+
+        // Store current version for next comparison
+        if (!storedVersion) {
+          localStorage.setItem('carddung-version', sv);
+        }
       })
       .catch(() => {});
   },
@@ -694,10 +696,11 @@ const Game = {
     const btn = document.getElementById('btn-update-reload');
     if (btn) {
       btn.addEventListener('click', () => {
-        // Clear caches and reload
+        // Clear caches, update stored version, reload
         caches.keys().then(keys => {
           Promise.all(keys.map(key => caches.delete(key)));
         });
+        localStorage.removeItem('carddung-version');
         window.location.reload();
       });
     }

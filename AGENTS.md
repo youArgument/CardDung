@@ -70,9 +70,9 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
   - Version displayed on menu screen (`index.html`, `js/main.js`, `css/style.css`).
 
 - PWA update notifications
-  - Native SW update scheme: `updatefound` → `statechange` → show banner → `postMessage('SKIP_WAITING')` → `controllerchange` → `reload()` (`js/main.js`, `sw.js`).
-  - SW listens for `SKIP_WAITING` message and calls `skipWaiting()` (`sw.js`).
-  - Update banner in HTML with CSS animation (`index.html`, `css/style.css`).
+  - Native SW `updatefound` scheme failed on mobile — replaced with VERSION-check scheme.
+  - Current: `index.html` never cached (always from server). On load, `main.js` fetches `VERSION?nocache=...` from network, compares with cached VERSION via `caches.match()`. If different — shows update banner (`js/main.js`, `sw.js`).
+  - Banner button clears all caches and calls `window.location.reload()` (`js/main.js`).
 
 - HTTPS + Nginx + Let's Encrypt
   - Added Nginx reverse proxy (`nginx.Dockerfile`, `nginx.conf`, `nginx-http.conf`).
@@ -80,6 +80,21 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
   - Domain: `game.you-argument.ru` → `95.31.141.194`.
   - Let's Encrypt certificate obtained (expires 02.10.2026).
   - Nginx redirects HTTP→HTTPS and proxies to `carddung:3000`.
+
+### What was done (v0.1.15 — UI, deck limit, hand→collection)
+- UI improvements
+  - Fixed grid scroll: removed `overflow: auto` from `.dungeon-grid` (`css/style.css`).
+  - Hand cards: single row, no fan effect — removed rotate transform from `HandUI.render`, updated CSS (`js/ui/hand.js`, `css/style.css`).
+  - Moved HUB button to center of top HUD panel (`index.html`, `css/style.css`, `js/ui/hub.js`).
+  - Removed END TURN button and action bar (`index.html`, `css/style.css`, `js/main.js`).
+
+- Deck limit
+  - Active Deck limit: 12 → 5 cards (`js/engine/hub.js`, `js/ui/hub.js`, `index.html`).
+  - Default deck reduced to 5 cards: `['strike', 'strike', 'defend', 'defend', 'bash']` (`js/engine/state.js`, `js/main.js`).
+
+- Hand→collection transfer
+  - On escape/leave-to-hub: remaining hand cards transfer to `state.collection` (`js/main.js` `onEscape`, `leaveToHub`).
+  - On death: all hand cards are lost (no transfer) (`js/main.js` `onDefeat`).
 
 ### Current Repository Structure
 ```
@@ -101,7 +116,7 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
 ├─ manifest.json
 ├─ package.json
 ├─ package-lock.json
-├─ sw.js                          # Service Worker (PWA caching + update detection)
+├─ sw.js                          # Service Worker (PWA caching, no index.html cache)
 ├─ vitest.config.js
 ├─ assets/
 │  └─ images/
@@ -142,7 +157,7 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
 ```
 
 ### Where the main gameplay logic lives
-- `js/main.js`: binds UI events (click/touch/drag), handles dungeon-grid click flow, base-hit/miss logic, SW registration + update detection, and calls `advanceWorldTick()` after player actions.
+- `js/main.js`: binds UI events (click/touch/drag), handles dungeon-grid click flow, base-hit/miss logic, VERSION-based PWA update check, and calls `advanceWorldTick()` after player actions.
 - `js/engine/state.js`: run lifecycle, reveal logic, item collection into hand, and stamina rules.
 - `js/engine/dungeon.js`: dungeon generation / reveal rules / enemy placement.
 - `js/engine/combat.js`: play-card effects and stamina costs.
@@ -151,10 +166,12 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
 ### Deployment
 - `npm run deploy` — builds all Docker services, increments VERSION, starts containers.
 - `https://game.you-argument.ru` — public HTTPS URL (Let's Encrypt, auto-renew needed before expiry).
-- PWA update: SW detects new version via `updatefound`, shows banner, user clicks "Обновить" → `skipWaiting` → reload.
+- PWA update: `index.html` always loads from server → `main.js` compares network VERSION with cached VERSION → shows banner if different → user clicks "Обновить" → caches cleared → reload.
 - `.gitignore` excludes `node_modules/` and `certs/`.
 
 ### Key Decisions
 - Chose Let's Encrypt over Cloudflare Tunnel for production HTTPS.
-- Replaced VERSION-check-in-SW with native PWA `updatefound` + `skipWaiting` scheme (standard PWA pattern).
+- Replaced native PWA `updatefound` + `skipWaiting` with VERSION-check scheme (more reliable on mobile).
 - Two-step Nginx: HTTP-only for certbot challenge, then HTTPS with certificate.
+- Active Deck limit: 5 cards (tighter, more strategic).
+- Hand cards survive escape (transfer to collection), lost on death.
