@@ -71,9 +71,11 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
   - Exit door already in grid from generation; player can find it at any time by exploring.
   - After all revealed enemies defeated: `onAllEnemiesDefeated()` updates progress bar (no auto-reveal of door).
   - Clicking exit door:
-    - Last room + cleared → auto-victory (`onVictory()`, reward screen) — no popup.
-    - Non-last room or enemies alive → popup with "Next Room/Escape" and "To Hub".
-  - Popup adapts text based on room state (cleared vs enemies alive, last vs non-last).
+    - Last room → auto-victory (`onVictory()`, reward screen) — no popup.
+    - Non-last room → popup "Next Room" / "To Hub".
+  - Exit door is the primary goal in each room; enemies don't need to be defeated to leave.
+
+- i18n (EN/RU)
 
 - i18n (EN/RU)
   - `js/system/i18n.js`: translation dict (~60 keys), `t(key, ...args)` with string interpolation.
