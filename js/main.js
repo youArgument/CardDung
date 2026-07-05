@@ -10,6 +10,7 @@ import { HandUI } from './ui/hand.js';
 import { CombatEngine } from './engine/combat.js';
 import { DUNGEON_TEMPLATES } from './data/dungeon.js';
 import { PLAYER_CARDS } from './data/cards.js';
+import { t, setLanguage, applyTranslations, getLanguage } from './system/i18n.js';
 
 const Game = {
   state: null,
@@ -40,6 +41,7 @@ const Game = {
 
     this.bindEvents();
     this.hubUI.init();
+    this.applyLang();
     this.updateMenu();
     this.bindUpdateButton();
 
@@ -57,6 +59,10 @@ const Game = {
   },
 
   bindEvents() {
+    // Language switch
+    document.getElementById('btn-lang-en').addEventListener('click', () => this.switchLang('en'));
+    document.getElementById('btn-lang-ru').addEventListener('click', () => this.switchLang('ru'));
+
     // Menu
     document.getElementById('btn-to-hub').addEventListener('click', () => {
       this.audio.playSelect();
@@ -500,21 +506,21 @@ const Game = {
 
     if (this.allEnemiesDefeated()) {
       if (this.state.isLastRoom()) {
-        title.textContent = 'Dungeon Cleared!';
-        desc.textContent = 'All rooms cleared. What now?';
-        continueBtn.textContent = 'Claim Rewards';
-        hubBtn.textContent = 'To Hub';
+        title.textContent = t('exit.cleared_title');
+        desc.textContent = t('exit.cleared_desc');
+        continueBtn.textContent = t('exit.claim_rewards');
+        hubBtn.textContent = t('exit.to_hub');
       } else {
-        title.textContent = 'Room Cleared';
-        desc.textContent = `Room ${run.roomsCleared + 1}/${run.totalRooms}`;
-        continueBtn.textContent = 'Next Room';
-        hubBtn.textContent = 'To Hub';
+        title.textContent = t('exit.room_cleared');
+        desc.textContent = t('dungeon.room', run.roomsCleared + 1, run.totalRooms);
+        continueBtn.textContent = t('exit.next_room');
+        hubBtn.textContent = t('exit.to_hub');
       }
     } else {
-      title.textContent = 'Exit Door';
-      desc.textContent = 'Enemies still alive!';
-      continueBtn.textContent = 'Escape';
-      hubBtn.textContent = 'To Hub';
+      title.textContent = t('exit.door_title');
+      desc.textContent = t('exit.enemies_alive');
+      continueBtn.textContent = t('exit.escape');
+      hubBtn.textContent = t('exit.to_hub');
     }
 
     document.getElementById('exit-popup').classList.remove('hidden');
@@ -556,7 +562,7 @@ const Game = {
     const roomProgress = document.getElementById('room-progress');
     const roomFill = document.getElementById('room-progress-fill');
     if (roomProgress) {
-      roomProgress.textContent = `Room ${run.roomsCleared + 1}/${run.totalRooms}`;
+      roomProgress.textContent = t('dungeon.room', run.roomsCleared + 1, run.totalRooms);
     }
     if (roomFill) {
       roomFill.style.width = `${((run.roomsCleared + 1) / run.totalRooms) * 100}%`;
@@ -606,8 +612,8 @@ const Game = {
     this.audio.playVictory();
     const run = this.state.run;
 
-    document.getElementById('reward-title').textContent = 'CLEARED!';
-    document.getElementById('reward-gold').textContent = `+${run.player.gold} Gold`;
+    document.getElementById('reward-title').textContent = t('reward.cleared');
+    document.getElementById('reward-gold').textContent = t('reward.gold', run.player.gold);
 
     const rewardCards = document.getElementById('reward-cards');
     rewardCards.innerHTML = '';
@@ -733,6 +739,24 @@ const Game = {
     const screen = document.getElementById(`${name}-screen`);
     if (screen) screen.classList.add('active');
     this.state.screen = name;
+  },
+
+  switchLang(lang) {
+    setLanguage(lang);
+    this.applyLang();
+    if (this.state.screen === 'hub') this.hubUI.updateHub();
+  },
+
+  applyLang() {
+    const lang = getLanguage();
+    document.getElementById('btn-lang-en').classList.toggle('active', lang === 'en');
+    document.getElementById('btn-lang-ru').classList.toggle('active', lang === 'ru');
+    applyTranslations();
+    this.updateMenu();
+    if (this.state.run) {
+      HUD.update(this.state);
+      this.updateRoomProgress();
+    }
   },
 
   // ===== PWA UPDATE =====

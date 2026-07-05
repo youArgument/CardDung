@@ -64,6 +64,17 @@ html, body {
   font-size: 9px; color: #444; letter-spacing: 1px;
   margin-top: -8px;
 }
+.lang-selector {
+  display: flex; gap: 4px; justify-content: center; margin-bottom: 12px;
+}
+.btn-lang {
+  background: var(--bg-panel); color: #666; border: 1px solid #333;
+  padding: 4px 14px; font-size: 11px; cursor: pointer; letter-spacing: 1px;
+  transition: all 0.2s;
+}
+.btn-lang.active {
+  color: var(--accent-gold); border-color: var(--accent-gold);
+}
 .menu-stats {
   display: flex; flex-direction: column; gap: 8px;
   margin: 20px 0; padding: 16px;

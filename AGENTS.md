@@ -1,7 +1,7 @@
 ## Agent Notes (MVP)
 
 ### Project Goal
-CardDung is a browser dungeon crawler where the player reveals dungeon cells and uses cards from hand to interact with enemies/items/exit doors. The MVP focuses on consistent click/drag behavior, stamina-based costs, and per-action tick reactions from enemies.
+CardDung is a browser dungeon crawler where the player reveals dungeon cells and uses cards from hand to interact with enemies/items/exit doors. The MVP focuses on consistent click/drag behavior, stamina-based costs, per-action tick reactions from enemies, sequential multi-room dungeons, and i18n (EN/RU).
 
 ### What was done (so far)
 - UI/interaction fixes
@@ -12,169 +12,117 @@ CardDung is a browser dungeon crawler where the player reveals dungeon cells and
 
 - Dungeon flow correctness
   - Disabled auto-reveal of the start cell in `js/engine/state.js` (`startRoom`).
-  - Removed manual-mode reveal gating that blocked progression (removed `DungeonEngine.canReveal(run)` from `js/main.js`).
-  - Made `END TURN` a no-op (no auto-attack / no auto-advance).
+  - Removed manual-mode reveal gating that blocked progression.
   - Implemented "tick after each player action" by calling `advanceWorldTick()` after actions.
-  - Implemented "exit requires second click": exit triggers only when the door is already revealed and clicked again (`js/main.js`).
   - Guaranteed at least one exit card per dungeon via `js/data/dungeon.js` (replaces one empty cell with an exit).
-  - Added room progress bar and increased total rooms per run (`totalRooms` in `js/engine/state.js`, and UI updates).
 
 - Stamina-based mechanics
-  - Stamina is now the gating resource for actions (card costs are checked against `player.stamina` instead of `energy`).
-  - `js/engine/state.js`: reveal costs stamina (`-5`) on reveal.
-  - `js/engine/combat.js`: stamina costs are deducted when playing applicable cards.
-  - `js/engine/state.js`: `startNewTurn()` no longer regenerates stamina/energy.
-  - `js/ui/hud.js` / `js/engine/hub.js`: updated compatibility for stamina/energy UI and logic.
-  - Updated tests to match stamina behavior.
+  - Stamina is the gating resource for all actions (card costs checked against `player.stamina`).
+  - Reveal costs `-5` stamina. Combat deducts stamina when playing cards.
+  - No passive stamina regen in `startNewTurn()`.
 
 - Hand/cards rules
-  - Hand size limit is 5 cards (`Deck.MAX_HAND = 5` in `js/engine/deck.js`).
-  - Starting hand draw matches deck/menu settings (draw count updated in `js/engine/state.js`).
-  - "Item after reveal" flow:
-    - Items no longer auto-collect during reveal.
-    - Clicking a revealed item cell collects it into the player hand as a card-like object (`collectItemAsCard` in `js/engine/state.js`).
-    - `js/main.js` renders and updates hand/grid after collection.
-    - Item cards can be used later via `useDungeonItemCard(itemCard)`.
+  - Hand size limit: 5 cards (`Deck.MAX_HAND = 5`).
+  - Items don't auto-collect on reveal; clicking a revealed item cell collects it into hand (`collectItemAsCard`).
+  - Item cards used via `useDungeonItemCard(itemCard)`.
 
 - Enemy interaction rules
-  - Enemies respond after each player action via `advanceWorldTick()` -> `enemiesAttack()`.
-  - Implemented base hit for clicking already revealed enemies without a hand attack card.
-  - Added a "miss" behavior when stamina is 0:
-    - Clicking a revealed enemy with insufficient stamina applies 0 damage (visual hit) but still counts as an action tick (enemies react).
-  - Added DOM/model safety for enemy detection because UI can re-render mid-flow:
-    - Enemy base hit checks both `cell.card.type === enemy` and DOM class `enemy-card`.
+  - Enemies respond after each player action via `advanceWorldTick()` → `enemiesAttack()`.
+  - Base hit for clicking revealed enemies (1 stamina, fixed damage).
+  - "Miss" at 0 stamina: visual hit but 0 damage, still triggers enemy tick.
 
 - Containerization
-  - Docker build updated and verified by running `docker compose up -d --build` after code changes.
+  - Docker build verified with `docker compose up -d --build` after code changes.
 
 ### What was done (v0.1.10 — bugs, PWA, HTTPS)
 - Bug fixes (code audit)
-  - Fixed mobile tap on enemy: added `touchend` handler on grid (`js/main.js`) alongside `click` to avoid click-synthesis delays on smartphones.
-  - Fixed duplicate `case 'draw':` in `useDungeonItemCard` switch (`js/main.js`).
-  - Fixed `cardsDiscovered` (Set) serialization in `SaveSystem.save()` — replaced `{...state.stats}` with explicit field copy (`js/system/save.js`).
-  - Added null guard in `GridUI.renderRevealedCard` (`js/ui/grid.js`).
-  - Removed dead code: `goBtn` variable, `canPlay` variable (energy-based), `start` variable in dungeon generation, duplicate `updateHub()` in `HubUI`, empty merge-check `if` block, all `console.debug` statements.
-  - Replaced hardcoded `5` with `Deck.MAX_HAND` constant (`js/engine/state.js`, `js/engine/deck.js`).
-  - Replaced deprecated `substr` with `slice` in `Card` uuid generation (`js/engine/card.js`).
-  - Added null-safe `setText` helper in `HUD.update()` (`js/ui/hud.js`).
-  - Converted dead energy mechanic to stamina: `case 'energy'` in combat, `case 'maxEnergy'` in item handler, `energy_up` dungeon item (`js/engine/combat.js`, `js/main.js`, `js/data/enemies.js`).
-  - Fixed `-0` damage display on miss: skip `showDamage` when amount <= 0 (`js/main.js`, `js/ui/grid.js`).
-  - Fixed damage number positioning: replaced `offsetLeft/Top` with `getBoundingClientRect` + `position: fixed` (`js/ui/grid.js`, `css/style.css`).
-  - Updated combat test to match energy→stamina conversion (`tests/engine/combat.test.js`).
+  - Fixed mobile tap: added `touchend` handler on grid (`js/main.js`).
+  - Fixed duplicate `case 'draw':` in `useDungeonItemCard`.
+  - Fixed Set serialization in `SaveSystem.save()`.
+  - Added null guards, removed dead code, replaced deprecated `substr` with `slice`.
+  - Converted dead energy mechanic to stamina throughout.
+  - Fixed `-0` damage display on miss; fixed damage number positioning (`getBoundingClientRect`).
 
 - App versioning
-  - Added `VERSION` file (semver, e.g. `0.1.0`).
-  - `Dockerfile` auto-increments patch version on each build.
-  - `bump-version.mjs` increments local VERSION after deploy.
-  - `npm run deploy` runs `docker compose up -d --build && node bump-version.mjs`.
-  - Version displayed on menu screen (`index.html`, `js/main.js`, `css/style.css`).
+  - `VERSION` file (semver), auto-incremented by Dockerfile on each build.
+  - Version displayed on menu screen.
 
 - PWA update notifications
-  - Native SW `updatefound` scheme failed on mobile — replaced with VERSION-check scheme.
-  - Current: `index.html` cached as offline fallback, SW fetches network-first. On load, `main.js` fetches `VERSION?nocache=...` from network, compares with `localStorage` version. If different — shows update banner (`js/main.js`, `sw.js`).
-  - Banner button clears all caches + `localStorage` version key → reload (`js/main.js`).
-  - `updateMenu()` also uses `VERSION?nocache=...` to always display current server version.
+  - VERSION-check scheme: fetches `VERSION?nocache=...` from network, compares with localStorage.
+  - Banner button: unregisters SW → clears all caches → removes localStorage key → reload (`js/main.js`).
+  - SW cache name bumped to `patient-rogue-v8` to force fresh asset cache on update.
 
 - HTTPS + Nginx + Let's Encrypt
-  - Added Nginx reverse proxy (`nginx.Dockerfile`, `nginx.conf`, `nginx-http.conf`).
-  - Added certbot service to `docker-compose.yml` with Docker volumes for certificate persistence.
   - Domain: `game.you-argument.ru` → `95.31.141.194`.
-  - Let's Encrypt certificate obtained (expires 02.10.2026).
-  - Nginx redirects HTTP→HTTPS and proxies to `carddung:3000`.
+  - Certificate expires 02.10.2026. Nginx redirects HTTP→HTTPS, proxies to `carddung:3000`.
 
 ### What was done (v0.1.15 — UI, deck limit, hand→collection)
 - UI improvements
-  - Fixed grid scroll: removed `overflow: auto` from `.dungeon-grid` (`css/style.css`).
-  - Hand cards: single row, no fan effect — removed rotate transform from `HandUI.render`, updated CSS (`js/ui/hand.js`, `css/style.css`).
-  - Moved HUB button to center of top HUD panel (`index.html`, `css/style.css`, `js/ui/hub.js`).
-  - Removed END TURN button and action bar (`index.html`, `css/style.css`, `js/main.js`).
-  - Removed player portrait, star-bar, energy/floor badges from dungeon HUD (`index.html`, `css/style.css`).
+  - Fixed grid scroll, single-row hand (no fan), HUB button centered top, removed END TURN.
+  - Removed player portrait, star-bar, energy/floor badges from dungeon HUD.
 
-- Deck limit
-  - Active Deck limit: 12 → 5 cards (`js/engine/hub.js`, `js/ui/hub.js`, `index.html`).
-  - Default deck reduced to 5 cards: `['strike', 'strike', 'defend', 'defend', 'bash']` (`js/engine/state.js`, `js/main.js`).
+- Deck limit: 5 cards max. Default: `['strike', 'strike', 'defend', 'defend', 'bash']`.
 
-- Hand→collection transfer
-  - On escape/leave-to-hub: remaining hand cards transfer to `state.collection` (`js/main.js` `onEscape`, `leaveToHub`).
-  - On death: all hand cards are lost (no transfer) (`js/main.js` `onDefeat`).
+- Hand→collection transfer on escape; hand lost on death.
+
+### What was done (v0.1.37 — sequential dungeons, i18n)
+- Sequential dungeon system (1–5 rooms)
+  - `state.js`: `totalRooms` = 1–5, `revealedEnemiesCount` tracker, `isLastRoom()` helper.
+  - Exit door already in grid from generation; player can find it at any time by exploring.
+  - After all revealed enemies defeated: `onAllEnemiesDefeated()` updates progress bar (no auto-reveal of door).
+  - Clicking exit door:
+    - Last room + cleared → auto-victory (`onVictory()`, reward screen) — no popup.
+    - Non-last room or enemies alive → popup with "Next Room/Escape" and "To Hub".
+  - Popup adapts text based on room state (cleared vs enemies alive, last vs non-last).
+
+- i18n (EN/RU)
+  - `js/system/i18n.js`: translation dict (~60 keys), `t(key, ...args)` with string interpolation.
+  - Language selector buttons on menu screen (`btn-lang-en`, `btn-lang-ru`).
+  - All UI strings use `data-i18n` attributes in HTML or `t()` calls in JS.
+  - Language persisted in localStorage; switching re-renders all screens instantly.
 
 ### Current Repository Structure
 ```
 .
 ├─ AGENTS.md                      # This file (agent notes)
-├─ Dockerfile
+├─ Dockerfile                     # Auto-increments VERSION on build
 ├─ docker-compose.yml
-├─ nginx.Dockerfile               # Nginx reverse proxy with Let's Encrypt
-├─ nginx.conf                     # Nginx HTTPS config
-├─ nginx-http.conf                # Nginx HTTP-only (for certbot challenge)
-├─ bump-version.mjs               # Auto-increment VERSION after deploy
-├─ VERSION                        # App version (auto-incremented)
-├─ server/
-│  ├─ Dockerfile
-│  ├─ index.js
-│  ├─ package.json
-│  └─ package-lock.json
-├─ index.html
-├─ manifest.json
-├─ package.json
-├─ package-lock.json
-├─ sw.js                          # Service Worker (PWA caching, offline fallback)
+├─ nginx.Dockerfile, nginx.conf   # HTTPS + Let's Encrypt
+├─ bump-version.mjs, VERSION      # Version management
+├─ server/                        # Express server (Dockerized)
+├─ index.html                     # All screens with data-i18n attributes
+├─ manifest.json                  # PWA manifest (icon cache-busting ?v=2)
+├─ sw.js                          # Service Worker (patient-rogue-v8, offline fallback)
 ├─ vitest.config.js
-├─ assets/
-│  └─ images/
-│     ├─ icon-192.png
-│     └─ icon-512.png
-├─ css/
-│  └─ style.css
+├─ assets/images/                 # PWA icons (192, 512)
+├─ css/style.css                  # All styles including .lang-selector
 ├─ js/
-│  ├─ data/
-│  │  ├─ cards.js
-│  │  ├─ dungeon.js
-│  │  ├─ enemies.js
-│  │  └─ upgrades.js
-│  ├─ engine/
-│  │  ├─ card.js
-│  │  ├─ combat.js
-│  │  ├─ deck.js
-│  │  ├─ dungeon.js
-│  │  ├─ hub.js
-│  │  └─ state.js
-│  ├─ system/
-│  │  ├─ audio.js
-│  │  └─ save.js
-│  └─ ui/
-│     ├─ grid.js
-│     ├─ hand.js
-│     ├─ hub.js
-│     └─ hud.js
-├─ tests/
-│  └─ engine/
-│     ├─ card.test.js
-│     ├─ combat.test.js
-│     ├─ deck.test.js
-│     ├─ dungeon.test.js
-│     ├─ hub.test.js
-│     └─ state.test.js
-└─ (other project files as needed)
+│  ├─ data/                      # cards.js, dungeon.js, enemies.js, upgrades.js
+│  ├─ engine/                    # card.js, combat.js, deck.js, dungeon.js, hub.js, state.js
+│  ├─ system/                    # audio.js, save.js, i18n.js (EN/RU translations)
+│  └─ ui/                        # grid.js, hand.js, hub.js, hud.js
+├─ tests/engine/                  # card, combat, deck, dungeon, hub, state tests (66 total)
+└─ .gitignore                     # excludes node_modules/, certs/
 ```
 
 ### Where the main gameplay logic lives
-- `js/main.js`: binds UI events (click/touch/drag), handles dungeon-grid click flow, base-hit/miss logic, VERSION-based PWA update check (localStorage), and calls `advanceWorldTick()` after player actions.
-- `js/engine/state.js`: run lifecycle, reveal logic, item collection into hand, and stamina rules.
-- `js/engine/dungeon.js`: dungeon generation / reveal rules / enemy placement.
+- `js/main.js`: UI events (click/touch/drag), dungeon-grid flow, base-hit/miss, exit popup, sequential room transitions, PWA update check, language switching.
+- `js/engine/state.js`: run lifecycle, reveal costs stamina, item collection, `revealedEnemiesCount`, `isLastRoom()`, `advanceRoom()` → next room or exit door.
+- `js/engine/dungeon.js`: grid generation with guaranteed exit card per room.
 - `js/engine/combat.js`: play-card effects and stamina costs.
-- `js/ui/*`: rendering of grid cards, hand cards, and HUD.
+- `js/system/i18n.js`: translation system, `t()`, `applyTranslations()`.
+- `js/ui/*`: rendering of grid cards, hand cards, HUD (with i18n integration).
 
 ### Deployment
-- `npm run deploy` — builds all Docker services, increments VERSION, starts containers.
-- `https://game.you-argument.ru` — public HTTPS URL (Let's Encrypt, auto-renew needed before expiry).
-- PWA update: `index.html` cached as offline fallback, network-first. `main.js` compares network VERSION with localStorage → shows banner if different → user clicks "Обновить" → caches + localStorage cleared → reload.
-- `.gitignore` excludes `node_modules/` and `certs/`.
+- Manual: bump local `VERSION` → `docker compose up -d --build` (Docker auto-increments patch).
+- Server VERSION always > local due to Dockerfile auto-increment.
+- Phone PWA: fetches network VERSION vs localStorage → shows banner if different → user clicks "Обновить" → SW unregistered, caches cleared, reload.
+- `https://game.you-argument.ru` — public HTTPS URL (Let's Encrypt).
 
 ### Key Decisions
-- Chose Let's Encrypt over Cloudflare Tunnel for production HTTPS.
-- PWA update: VERSION-check via localStorage (reliable on mobile, no banner loops).
-- SW caching: `index.html` cached as offline fallback, VERSION never cached.
-- Two-step Nginx: HTTP-only for certbot challenge, then HTTPS with certificate.
-- Active Deck limit: 5 cards (tighter, more strategic).
-- Hand cards survive escape (transfer to collection), lost on death.
+- Let's Encrypt over Cloudflare Tunnel for production HTTPS.
+- PWA update: VERSION-check via localStorage; SW cache name bumps force fresh assets.
+- Exit door always in grid from generation, findable at any time; popup only on click.
+- Sequential dungeons: 1–5 rooms, exit popup adapts to room state.
+- i18n: `data-i18n` attributes for static HTML, `t()` calls for dynamic JS strings.
+- Active Deck limit: 5 cards. Hand survives escape (→collection), lost on death.

@@ -19,12 +19,16 @@
         <h1 class="game-title">PATIENT ROGUE</h1>
         <div class="menu-subtitle">Extraction Card Dungeon</div>
         <div id="app-version" class="menu-version"></div>
-        <div class="menu-stats">
-          <div class="stat-row"><span class="stat-label">Best Floor</span><span id="best-floor" class="stat-val">0</span></div>
-          <div class="stat-row"><span class="stat-label">Runs</span><span id="total-runs" class="stat-val">0</span></div>
-          <div class="stat-row"><span class="stat-label">Escapes</span><span id="total-escapes" class="stat-val">0</span></div>
+        <div class="lang-selector">
+          <button id="btn-lang-en" class="btn-lang active">EN</button>
+          <button id="btn-lang-ru" class="btn-lang">RU</button>
         </div>
-        <button id="btn-to-hub" class="btn-primary">ENTER HUB</button>
+        <div class="menu-stats">
+          <div class="stat-row"><span class="stat-label" data-i18n="menu.best_floor"></span><span id="best-floor" class="stat-val">0</span></div>
+          <div class="stat-row"><span class="stat-label" data-i18n="menu.runs"></span><span id="total-runs" class="stat-val">0</span></div>
+          <div class="stat-row"><span class="stat-label" data-i18n="menu.escapes"></span><span id="total-escapes" class="stat-val">0</span></div>
+        </div>
+        <button id="btn-to-hub" class="btn-primary" data-i18n="menu.enter_hub"></button>
       </div>
     </div>
 
@@ -32,32 +36,32 @@
     <div id="hub-screen" class="screen">
       <div class="hub-header">
         <div class="hub-gold"><span class="res-icon">◆</span><span id="hub-gold">0</span></div>
-        <button id="btn-hub-menu" class="btn-back">◀</button>
+        <button id="btn-hub-menu" class="btn-back" data-i18n="hub.back"></button>
       </div>
       <div class="hub-grid" id="hub-grid">
         <!-- Card 1: Black Market -->
         <div class="hub-card" id="hub-market" data-panel="market">
           <div class="hub-card-icon">💰</div>
-          <div class="hub-card-title">Black Market</div>
-          <div class="hub-card-desc">Buy cards for your deck</div>
+          <div class="hub-card-title" data-i18n="hub.market"></div>
+          <div class="hub-card-desc" data-i18n="hub.market_desc"></div>
         </div>
         <!-- Card 2: Deck/Storage -->
         <div class="hub-card" id="hub-deck" data-panel="deck">
           <div class="hub-card-icon">🗃️</div>
-          <div class="hub-card-title">Deck</div>
-          <div class="hub-card-desc">Manage your collection</div>
+          <div class="hub-card-title" data-i18n="hub.deck"></div>
+          <div class="hub-card-desc" data-i18n="hub.deck_desc"></div>
         </div>
         <!-- Card 3: Safehouse/Upgrades -->
         <div class="hub-card" id="hub-safehouse" data-panel="safehouse">
           <div class="hub-card-icon">🕯️</div>
-          <div class="hub-card-title">Safehouse</div>
-          <div class="hub-card-desc">Permanent upgrades</div>
+          <div class="hub-card-title" data-i18n="hub.safehouse"></div>
+          <div class="hub-card-desc" data-i18n="hub.safehouse_desc"></div>
         </div>
         <!-- Card 4: Enter Dungeon -->
         <div class="hub-card hub-card-dungeon" id="hub-dungeon" data-panel="dungeon">
           <div class="hub-card-icon">🚪</div>
-          <div class="hub-card-title">The Descent</div>
-          <div class="hub-card-desc">Enter the dungeon</div>
+          <div class="hub-card-title" data-i18n="hub.descent"></div>
+          <div class="hub-card-desc" data-i18n="hub.descent_desc"></div>
         </div>
       </div>
     </div>
@@ -65,8 +69,8 @@
     <!-- Hub Panels (overlay) -->
     <div id="panel-market" class="hub-panel hidden">
       <div class="panel-header">
-        <button class="btn-panel-back">◀ Back</button>
-        <h2>💰 Black Market</h2>
+        <button class="btn-panel-back" data-i18n="hub.back"></button>
+        <h2>💰 <span data-i18n="hub.market"></span></h2>
         <div class="panel-gold">◆ <span id="panel-gold">0</span></div>
       </div>
       <div class="panel-content" id="market-list"></div>
@@ -74,17 +78,17 @@
 
     <div id="panel-deck" class="hub-panel hidden">
       <div class="panel-header">
-        <button class="btn-panel-back">◀ Back</button>
-        <h2>🗃️ Deck</h2>
-        <div class="panel-info"><span id="deck-count">0</span> / 5 cards</div>
+        <button class="btn-panel-back" data-i18n="hub.back"></button>
+        <h2>🗃️ <span data-i18n="hub.deck"></span></h2>
+        <div class="panel-info" id="deck-count-label"></div>
       </div>
       <div class="panel-content">
         <div class="deck-section">
-          <h3>Active Deck</h3>
+          <h3 data-i18n="deck.active"></h3>
           <div class="deck-grid" id="deck-active"></div>
         </div>
         <div class="deck-section">
-          <h3>Collection</h3>
+          <h3 data-i18n="deck.collection"></h3>
           <div class="deck-grid" id="deck-collection"></div>
         </div>
       </div>
@@ -92,8 +96,8 @@
 
     <div id="panel-safehouse" class="hub-panel hidden">
       <div class="panel-header">
-        <button class="btn-panel-back">◀ Back</button>
-        <h2>🕯️ Safehouse</h2>
+        <button class="btn-panel-back" data-i18n="hub.back"></button>
+        <h2>🕯️ <span data-i18n="hub.safehouse"></span></h2>
         <div class="panel-gold">◆ <span id="panel-gold-safe">0</span></div>
       </div>
       <div class="panel-content" id="upgrade-list"></div>
@@ -113,7 +117,7 @@
           <span class="armor-badge" id="armor-badge">🛡4</span>
           <span class="stamina-badge" id="stamina-badge">⚡100</span>
         </div>
-        <button id="btn-hub-leave" class="btn-hub-top">HUB</button>
+        <button id="btn-hub-leave" class="btn-hub-top" data-i18n="dungeon.hub"></button>
         <div class="hud-resources">
           <span class="resource gold">◆<span id="gold-val">0</span></span>
         </div>
@@ -126,54 +130,54 @@
     <!-- Reward Screen -->
     <div id="reward-screen" class="screen">
       <div class="reward-content">
-        <h2 class="reward-title" id="reward-title">Cleared!</h2>
-        <div class="reward-gold" id="reward-gold">+0 Gold</div>
+        <h2 class="reward-title" id="reward-title"></h2>
+        <div class="reward-gold" id="reward-gold"></div>
         <div class="reward-cards" id="reward-cards"></div>
-        <button id="btn-reward-done" class="btn-primary hidden">CONTINUE</button>
+        <button id="btn-reward-done" class="btn-primary hidden" data-i18n="reward.continue"></button>
       </div>
     </div>
 
     <!-- Game Over Screen -->
     <div id="gameover-screen" class="screen">
       <div class="gameover-content">
-        <h2 id="gameover-title">DEFEATED</h2>
+        <h2 id="gameover-title" data-i18n="gameover.title"></h2>
         <div class="gameover-stats">
-          <div class="stat-row">Floor: <span id="go-floor">0</span></div>
-          <div class="stat-row">Cards Revealed: <span id="go-revealed">0</span></div>
-          <div class="stat-row">Enemies Slain: <span id="go-kills">0</span></div>
+          <div class="stat-row"><span data-i18n="escape.floor"></span>: <span id="go-floor">0</span></div>
+          <div class="stat-row"><span data-i18n="gameover.revealed"></span>: <span id="go-revealed">0</span></div>
+          <div class="stat-row"><span data-i18n="gameover.kills"></span>: <span id="go-kills">0</span></div>
         </div>
-        <button id="btn-go-hub" class="btn-primary">BACK TO HUB</button>
+        <button id="btn-go-hub" class="btn-primary" data-i18n="gameover.back_hub"></button>
       </div>
     </div>
 
     <!-- Escape Screen -->
     <div id="escape-screen" class="screen">
       <div class="escape-content">
-        <h2>ESCAPED!</h2>
+        <h2 data-i18n="escape.title"></h2>
         <div class="escape-stats">
-          <div class="stat-row">Floor: <span id="esc-floor">0</span></div>
-          <div class="stat-row">Gold: <span id="esc-gold">0</span></div>
-          <div class="stat-row">HP: <span id="esc-hp">0</span></div>
+          <div class="stat-row"><span data-i18n="escape.floor"></span>: <span id="esc-floor">0</span></div>
+          <div class="stat-row"><span data-i18n="escape.gold"></span>: <span id="esc-gold">0</span></div>
+          <div class="stat-row"><span data-i18n="escape.hp"></span>: <span id="esc-hp">0</span></div>
         </div>
-        <button id="btn-escape-hub" class="btn-primary">BACK TO HUB</button>
+        <button id="btn-escape-hub" class="btn-primary" data-i18n="escape.back_hub"></button>
       </div>
     </div>
 
     <!-- Update Available Banner -->
     <div id="update-banner" class="update-banner hidden">
-      <span>🔄 Обновление доступно!</span>
-      <button id="btn-update-reload" class="btn-update">Обновить</button>
+      <span data-i18n="update.available"></span>
+      <button id="btn-update-reload" class="btn-update" data-i18n="update.button"></button>
     </div>
 
     <!-- Exit Door Popup -->
     <div id="exit-popup" class="card-popup hidden">
       <div class="popup-content">
         <div class="popup-sprite">🚪</div>
-        <div class="popup-name" id="exit-popup-title">Exit Door</div>
-        <div class="popup-desc" id="exit-popup-desc">What would you like to do?</div>
+        <div class="popup-name" id="exit-popup-title"></div>
+        <div class="popup-desc" id="exit-popup-desc"></div>
         <div class="popup-actions">
-          <button id="btn-exit-continue" class="btn-primary">Continue</button>
-          <button id="btn-exit-hub" class="btn-secondary">To Hub</button>
+          <button id="btn-exit-continue" class="btn-primary"></button>
+          <button id="btn-exit-hub" class="btn-secondary" data-i18n="exit.to_hub"></button>
         </div>
       </div>
     </div>

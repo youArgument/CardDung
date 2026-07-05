@@ -1,3 +1,5 @@
+import { t } from '../system/i18n.js';
+
 export class HUD {
   static update(state) {
     const run = state.run;
@@ -32,7 +34,7 @@ export class HUD {
     if (roomProgress) {
       const current = run.roomsCleared + 1;
       const total = run.totalRooms;
-      roomProgress.textContent = `Room ${current}/${total}`;
+      roomProgress.textContent = t('dungeon.room', current, total);
     }
 
     // Reveal progress (stars)

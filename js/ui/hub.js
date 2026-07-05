@@ -1,5 +1,6 @@
 import { PLAYER_CARDS } from '../data/cards.js';
 import { UPGRADES, getUpgradeCost } from '../data/upgrades.js';
+import { t } from '../system/i18n.js';
 
 export class HubUI {
   constructor(game) {
@@ -101,7 +102,7 @@ export class HubUI {
   renderDeck() {
     const state = this.game.state;
     const activeCount = state.activeDeck.length;
-    document.getElementById('deck-count').textContent = activeCount;
+    document.getElementById('deck-count-label').textContent = t('hub.deck_count', activeCount);
 
     // Active deck
     const activeGrid = document.getElementById('deck-active');
@@ -200,7 +201,7 @@ export class HubUI {
         <div class="upgrade-info">
           <div class="upgrade-name">${upgrade.name}</div>
           <div class="upgrade-desc">${upgrade.desc}</div>
-          <div class="upgrade-level">${maxed ? 'MAX' : `Lv ${level}/${upgrade.maxLevel}`}</div>
+          <div class="upgrade-level">${maxed ? t('safehouse.maxed') : `Lv ${level}/${upgrade.maxLevel}`}</div>
         </div>
         ${maxed ? '' : `<div class="upgrade-cost">◆ ${cost}</div>`}
       `;
@@ -249,7 +250,7 @@ export class HubUI {
     document.getElementById('popup-sprite').textContent = card.sprite;
     document.getElementById('popup-name').textContent = card.name;
     document.getElementById('popup-desc').textContent = card.desc;
-    document.getElementById('popup-stats').textContent = `Cost: ${card.cost}⚡ | Power: ${card.power}`;
+    document.getElementById('popup-stats').textContent = `${t('deck.power', card.power)}`;
 
     const actions = document.getElementById('popup-actions');
     actions.innerHTML = '';
@@ -263,7 +264,7 @@ export class HubUI {
       if (otherIndex !== -1) {
         const mergeBtn = document.createElement('button');
         mergeBtn.className = 'popup-btn merge';
-        mergeBtn.textContent = 'MERGE';
+        mergeBtn.textContent = t('deck.merge');
         mergeBtn.addEventListener('click', () => {
           if (this.game.hub.mergeCards(deckIndex, otherIndex)) {
             this.game.audio.playSelect();
@@ -276,7 +277,7 @@ export class HubUI {
 
       const removeBtn = document.createElement('button');
       removeBtn.className = 'popup-btn remove';
-      removeBtn.textContent = 'REMOVE';
+      removeBtn.textContent = t('deck.remove');
       removeBtn.addEventListener('click', () => {
         this.game.hub.removeFromDeck(deckIndex);
         this.game.audio.playSelect();
@@ -287,7 +288,7 @@ export class HubUI {
     } else if (source === 'collection') {
       const addBtn = document.createElement('button');
       addBtn.className = 'popup-btn add';
-      addBtn.textContent = 'ADD TO DECK';
+      addBtn.textContent = t('deck.add');
       addBtn.disabled = this.game.state.activeDeck.length >= 5;
       addBtn.addEventListener('click', () => {
         if (this.game.hub.addToDeck(cardId)) {
@@ -301,7 +302,7 @@ export class HubUI {
 
     const closeBtn = document.createElement('button');
     closeBtn.className = 'popup-btn close';
-    closeBtn.textContent = 'CLOSE';
+    closeBtn.textContent = t('deck.close');
     closeBtn.addEventListener('click', () => this.hidePopup());
     actions.appendChild(closeBtn);
 
