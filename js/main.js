@@ -256,7 +256,7 @@ const Game = {
 
     // Exit flow: last room → auto-victory; otherwise → popup.
     if (cell.revealed && cell.card.type === DUNGEON_TEMPLATES.exit) {
-      if (this.allEnemiesDefeated() && this.state.isLastRoom()) {
+      if (this.state.isLastRoom()) {
         this.onVictory();
       } else {
         this.showExitPopup();
@@ -504,24 +504,10 @@ const Game = {
     const continueBtn = document.getElementById('btn-exit-continue');
     const hubBtn = document.getElementById('btn-exit-hub');
 
-    if (this.allEnemiesDefeated()) {
-      if (this.state.isLastRoom()) {
-        title.textContent = t('exit.cleared_title');
-        desc.textContent = t('exit.cleared_desc');
-        continueBtn.textContent = t('exit.claim_rewards');
-        hubBtn.textContent = t('exit.to_hub');
-      } else {
-        title.textContent = t('exit.room_cleared');
-        desc.textContent = t('dungeon.room', run.roomsCleared + 1, run.totalRooms);
-        continueBtn.textContent = t('exit.next_room');
-        hubBtn.textContent = t('exit.to_hub');
-      }
-    } else {
-      title.textContent = t('exit.door_title');
-      desc.textContent = t('exit.enemies_alive');
-      continueBtn.textContent = t('exit.escape');
-      hubBtn.textContent = t('exit.to_hub');
-    }
+    title.textContent = t('exit.door_title');
+    desc.textContent = t('dungeon.room', run.roomsCleared + 1, run.totalRooms);
+    continueBtn.textContent = t('exit.next_room');
+    hubBtn.textContent = t('exit.to_hub');
 
     document.getElementById('exit-popup').classList.remove('hidden');
   },
@@ -532,23 +518,18 @@ const Game = {
 
   onExitContinue() {
     this.hideExitPopup();
+    const run = this.state.run;
 
-    if (this.allEnemiesDefeated()) {
-      const run = this.state.run;
-      if (this.state.isLastRoom()) {
-        // Dungeon complete — show rewards
-        this.onVictory();
-      } else {
-        // Advance to next room
-        this.state.advanceRoom();
-        this.updateRoomProgress();
-        GridUI.render(run.dungeon, this.state, document.getElementById('dungeon-grid'));
-        HandUI.render(this.state, document.getElementById('hand-container'));
-        HUD.update(this.state);
-      }
+    if (this.state.isLastRoom()) {
+      // Dungeon complete — show rewards
+      this.onVictory();
     } else {
-      // Enemies still alive — escape to hub
-      this.onEscape();
+      // Advance to next room
+      this.state.advanceRoom();
+      this.updateRoomProgress();
+      GridUI.render(run.dungeon, this.state, document.getElementById('dungeon-grid'));
+      HandUI.render(this.state, document.getElementById('hand-container'));
+      HUD.update(this.state);
     }
   },
 
