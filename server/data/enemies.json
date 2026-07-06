@@ -1,0 +1,11 @@
+[
+  { "id": "rat", "name": "Rat", "sprite": "🐀", "hp": 3, "atk": 2, "gold": 2, "tier": 1, "maxArmor": 0, "deckTemplate": ["bite", "bite", "scratch", "retreat"] },
+  { "id": "skeleton", "name": "Skeleton", "sprite": "💀", "hp": 5, "atk": 3, "gold": 3, "tier": 1, "maxArmor": 2, "deckTemplate": ["bone_strike", "shield_bone", "bone_strike", "heavy_blow"] },
+  { "id": "ghost", "name": "Ghost", "sprite": "👻", "hp": 4, "atk": 4, "gold": 3, "tier": 1, "maxArmor": 0, "deckTemplate": ["wail", "phase_through", "wail", "dark_touch"] },
+  { "id": "slime", "name": "Slime", "sprite": "🟢", "hp": 6, "atk": 2, "gold": 2, "tier": 1, "maxArmor": 3, "deckTemplate": ["ooze_slap", "absorb", "ooze_slap", "split"] },
+  { "id": "wolf", "name": "Wolf", "sprite": "🐺", "hp": 7, "atk": 4, "gold": 4, "tier": 2, "maxArmor": 1, "deckTemplate": ["fang_bite", "pounce", "howl_buff", "retreat"] },
+  { "id": "orc", "name": "Orc", "sprite": "👹", "hp": 10, "atk": 5, "gold": 5, "tier": 2, "maxArmor": 4, "deckTemplate": ["club_smash", "iron_skin", "club_smash", "war_cry"] },
+  { "id": "demon", "name": "Demon", "sprite": "👿", "hp": 8, "atk": 6, "gold": 6, "tier": 2, "maxArmor": 2, "deckTemplate": ["hellfire", "dark_ritual", "hellfire", "possess"] },
+  { "id": "dragon", "name": "Dragon", "sprite": "🐉", "hp": 15, "atk": 7, "gold": 10, "tier": 3, "maxArmor": 5, "deckTemplate": ["fire_breath", "scale_armor", "tail_sweep", "dragon_roar"] },
+  { "id": "lich", "name": "Lich", "sprite": "🧙", "hp": 12, "atk": 8, "gold": 8, "tier": 3, "maxArmor": 3, "deckTemplate": ["death_touch", "life_drain", "frost_bolt"] }
+]

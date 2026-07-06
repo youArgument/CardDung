@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CARDS_PATH = join(__dirname, 'data', 'cards.json');
+const ENEMIES_PATH = join(__dirname, 'data', 'enemies.json');
 
 const app = express();
 app.use(express.json());
@@ -13,7 +14,7 @@ app.use(express.json());
 // CORS for local dev (nginx handles prod)
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
@@ -71,6 +72,38 @@ app.delete('/api/cards/:id', (req, res) => {
   }
   writeCards(filtered);
   res.json({ ok: true });
+});
+
+// ===== ENEMIES API =====
+function readEnemies() {
+  try {
+    const raw = readFileSync(ENEMIES_PATH, 'utf8');
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+function writeEnemies(enemies) {
+  writeFileSync(ENEMIES_PATH, JSON.stringify(enemies, null, 2), 'utf8');
+}
+
+app.get('/api/enemies', (_req, res) => {
+  res.json(readEnemies());
+});
+
+// Update deckTemplate for a specific enemy.
+app.put('/api/enemies/:id/deck', (req, res) => {
+  const enemies = readEnemies();
+  const { deckTemplate } = req.body;
+  if (!Array.isArray(deckTemplate)) return res.status(400).json({ error: 'deckTemplate must be array' });
+
+  const idx = enemies.findIndex(e => e.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'enemy not found' });
+
+  enemies[idx].deckTemplate = deckTemplate;
+  writeEnemies(enemies);
+  res.json({ ok: true, enemy: enemies[idx] });
 });
 
 // MVP: placeholders. Next step: move authoritative engine here.
