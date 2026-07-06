@@ -1,56 +1,62 @@
 import { BIOME_TILES } from '../data/biomes.js';
 import { FOG } from '../engine/worldmap.js';
-import { t } from '../system/i18n.js';
 
-const TILE_SIZE = 32; // px per tile on mobile portrait.
-const VISIBLE_RADIUS = 6; // tiles visible in each direction from center.
+const TILE_SIZE = 54;
+const GAP = 2;
+const PADDING = 20; // padding inside grid container.
 
 export class WorldMapUI {
   constructor(containerId, worldMap) {
     this.container = document.getElementById(containerId);
     this.map = worldMap;
-    this.gridEl = null;
-    this.playerMarker = null;
+    this._offsetX = 0;
+    this._offsetY = 0;
+    this._scale = 1.0;
+    this._isDragging = false;
+    this._hasDragged = false;
+    this._dragStartX = 0;
+    this._dragStartY = 0;
     this._init();
   }
 
   _init() {
-    // Create the grid container.
-    this.gridEl = document.createElement('div');
-    this.gridEl.className = 'worldmap-grid';
-    this.container.appendChild(this.gridEl);
+    const size = this.map.size;
 
-    // Create tile elements for visible area.
+    // World mesh (transformable container for pan/zoom).
+    this.worldMesh = document.createElement('div');
+    this.worldMesh.className = 'worldmap-mesh';
+    this.container.appendChild(this.worldMesh);
+
+    // Grid — CSS grid layout.
+    this.gridEl = document.createElement('div');
+    this.gridEl.className = 'worldmap-grid-cells';
+    this.gridEl.style.gridTemplateColumns = `repeat(${size}, ${TILE_SIZE}px)`;
+    this.worldMesh.appendChild(this.gridEl);
+
+    // Player token — positioned absolutely inside grid.
+    this.playerToken = document.createElement('div');
+    this.playerToken.className = 'worldmap-player-token';
+    this.playerToken.textContent = '🛡️';
+    this.gridEl.appendChild(this.playerToken);
+
+    // Render all tiles as CSS grid children.
     this._renderTiles();
 
-    // Player marker.
-    this.playerMarker = document.createElement('div');
-    this.playerMarker.className = 'worldmap-player';
-    this.playerMarker.textContent = '🧙';
-    this.container.appendChild(this.playerMarker);
+    // Fog overlay for unexplored areas (handled via ::before on each cell).
+    this._updateFogAndWalkable();
 
-    // POI overlay layer.
-    this.poiLayer = document.createElement('div');
-    this.poiLayer.className = 'worldmap-poi-layer';
-    this.container.appendChild(this.poiLayer);
+    // Input: drag-to-pan + tap to move/interact.
+    this._setupInput();
 
-    // Input handling.
-     this._setupInput();
-
-     // Initial camera position — defer until container is visible and sized.
-     requestAnimationFrame(() => {
-       requestAnimationFrame(() => this.updateCamera());
-     });
-   }
+    // Center camera after DOM is visible and sized.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => this.centerOnPlayer());
+    });
+  }
 
   _renderTiles() {
     const size = this.map.size;
-    this.gridEl.innerHTML = '';
     this._tileElements = [];
-
-    // Set grid container dimensions.
-    this.gridEl.style.width = `${size * TILE_SIZE}px`;
-    this.gridEl.style.height = `${size * TILE_SIZE}px`;
 
     for (let r = 0; r < size; r++) {
       this._tileElements[r] = [];
@@ -59,190 +65,193 @@ export class WorldMapUI {
         if (!cell) continue;
 
         const tile = document.createElement('div');
-        tile.className = `worldmap-tile worldmap-tile-${cell.tileType}`;
+        tile.className = `worldmap-cell`;
         tile.dataset.r = r;
         tile.dataset.c = c;
-        tile.style.left = `${c * TILE_SIZE}px`;
-        tile.style.top = `${r * TILE_SIZE}px`;
 
+        // Biome/tile type class.
         const tileData = BIOME_TILES[cell.tileType] || BIOME_TILES.grass;
+        tile.classList.add(`biome-${cell.tileType}`);
         if (tileData.sprite) {
           tile.textContent = tileData.sprite;
         }
 
-        this.gridEl.appendChild(tile);
+        // POI icon inside cell.
+        const poi = this.map.getObjectAt(r, c);
+        if (poi) {
+          const poiIcon = document.createElement('div');
+          poiIcon.className = `worldmap-poi-icon poi-${poi.type}`;
+          poiIcon.textContent = poi.icon || '❓';
+          tile.appendChild(poiIcon);
+
+          if (poi.type === 'grace' && poi.isActive) {
+            tile.classList.add('grace-active');
+          }
+        }
+
+        this.gridEl.insertBefore(tile, this.playerToken); // Before player token.
         this._tileElements[r][c] = tile;
       }
     }
   }
 
-  updateTiles() {
-    // Update fog states and POI visibility on existing tiles.
+  _updateFogAndWalkable() {
     const size = this.map.size;
+
     for (let r = 0; r < size; r++) {
       for (let c = 0; c < size; c++) {
-        const tile = this._tileElements?.[r]?.[c];
-        if (!tile) continue;
+        const tileEl = this._tileElements[r]?.[c];
+        if (!tileEl) continue;
 
         const cell = this.map.getCell(r, c);
         if (!cell) continue;
 
-        // Fog states.
-        tile.classList.toggle('fog-hidden', cell.fog === FOG.hidden);
-        tile.classList.toggle('fog-explored', cell.fog === FOG.explored);
-        tile.classList.toggle('fog-visible', cell.fog === FOG.visible);
+        // Fog states via CSS classes (fog handled by ::before).
+        tileEl.classList.remove('explored', 'visible', 'walkable');
 
-        // Tile type colors/sprites already set at creation.
+        if (cell.fog === FOG.visible) {
+          tileEl.classList.add('visible');
+          tileEl.classList.add('explored');
+
+          // Highlight walkable adjacent cells.
+          const dr = r - this.map.playerPos.r;
+          const dc = c - this.map.playerPos.c;
+          if (Math.abs(dr) + Math.abs(dc) === 1 && cell.walkable && !cell.collision) {
+            tileEl.classList.add('walkable');
+          }
+        } else if (cell.fog === FOG.explored) {
+          tileEl.classList.add('explored');
+        }
       }
     }
 
-    this._renderPOIs();
+    // Update player token position inside grid.
+    const pos = this.map.playerPos;
+    this.playerToken.style.left = `${pos.c * (TILE_SIZE + GAP) + PADDING}px`;
+    this.playerToken.style.top = `${pos.r * (TILE_SIZE + GAP) + PADDING}px`;
+
+    // Update grace-active class on cells.
+    for (const obj of this.map.objects.values()) {
+      if (obj.type === 'grace' && obj.isActive) {
+        const tileEl = this._tileElements[obj.r]?.[obj.c];
+        if (tileEl) tileEl.classList.add('grace-active');
+      }
+    }
   }
 
-  _renderPOIs() {
-    if (!this.poiLayer) return;
-    this.poiLayer.innerHTML = '';
+  centerOnPlayer() {
+    const pos = this.map.playerPos;
+    const sw = this.container.clientWidth || 450;
+    const sh = this.container.clientHeight || 700;
+    const step = TILE_SIZE + GAP;
 
-    const size = this.map.size;
-    this.poiLayer.style.width = `${size * TILE_SIZE}px`;
-    this.poiLayer.style.height = `${size * TILE_SIZE}px`;
+    this._offsetX = (sw / 2) - (pos.c * step) - (TILE_SIZE / 2);
+    this._offsetY = (sh / 2) - (pos.r * step) - (TILE_SIZE / 2);
 
-    for (const obj of this.map.objects.values()) {
-      const cell = this.map.getCell(obj.r, obj.c);
-      if (!cell || cell.fog === FOG.hidden) continue; // Don't show hidden POIs.
-
-      const poiEl = document.createElement('div');
-      poiEl.className = `worldmap-poi worldmap-poi-${obj.type}`;
-      poiEl.dataset.id = obj.id;
-      poiEl.textContent = obj.icon || '❓';
-      poiEl.style.left = `${obj.c * TILE_SIZE}px`;
-      poiEl.style.top = `${obj.r * TILE_SIZE}px`;
-
-      if (cell.fog === FOG.explored) {
-        poiEl.classList.add('poi-explored'); // Dimmed for explored.
-      }
-
-      this.poiLayer.appendChild(poiEl);
-    }
+    this.worldMesh.style.transform = `translate(${this._offsetX}px, ${this._offsetY}px) scale(${this._scale})`;
   }
 
   updateCamera() {
-    const pos = this.map.playerPos;
-    const screenW = this.container.clientWidth || 450;
-    const screenH = this.container.clientHeight || 700;
-
-    // Center the grid on the player: shift so player tile is at center of screen.
-    const offsetX = -(pos.c * TILE_SIZE) + (screenW / 2) - (TILE_SIZE / 2);
-    const offsetY = -(pos.r * TILE_SIZE) + (screenH / 2) - (TILE_SIZE / 2);
-
-    this.gridEl.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
-
-    // Position POI layer to match grid.
-    if (this.poiLayer) {
-      this.poiLayer.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
-    }
-
-    // Update player marker position (always centered).
-    if (this.playerMarker) {
-      this.playerMarker.style.left = `${screenW / 2 - TILE_SIZE / 2}px`;
-      this.playerMarker.style.top = `${screenH / 2 - TILE_SIZE / 2}px`;
-    }
+    this.centerOnPlayer();
   }
 
-  // ─── Input Handling ──────────────────────────────
+  // ─── Drag-to-Pan Input ────────────────────────
 
   _setupInput() {
-    let longPressTimer = null;
-
-    const handleTap = (e) => {
-      e.preventDefault();
-      if (!this.map) return;
-
-      // Calculate which tile was tapped relative to the grid.
-      const rect = this.container.getBoundingClientRect();
-      const touch = e.touches ? e.changedTouches[0] : e;
-      const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top;
-
-      // Convert screen coords to grid coords.
-      const pos = this.map.playerPos;
-      const tileCol = Math.round((x + (pos.c * TILE_SIZE - rect.width / 2)) / TILE_SIZE);
-      const tileRow = Math.round((y + (pos.r * TILE_SIZE - rect.height / 2)) / TILE_SIZE);
-
-      // Clamp to grid bounds.
-      const r = Math.max(0, Math.min(this.map.size - 1, tileRow));
-      const c = Math.max(0, Math.min(this.map.size - 1, tileCol));
-
-      this._handleCellTap(r, c);
+    const onStart = (e) => {
+      this._isDragging = true;
+      this._hasDragged = false;
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      this._dragStartX = cx;
+      this._dragStartY = cy;
+      this.container.classList.add('grabbing');
     };
 
-    // Touch handling for mobile.
-    this.container.addEventListener('touchstart', (e) => {
-      longPressTimer = setTimeout(() => {
-        // Long press on grace → toggle teleport mode.
-        const obj = this.map.getObjectAt(this.map.playerPos.r, this.map.playerPos.c);
-        if (obj?.type === 'grace') {
-          this._onGraceLongPress(obj);
-        }
-      }, 500);
-    }, { passive: true });
+    const onMove = (e) => {
+      if (!this._isDragging) return;
+      const cx = e.touches ? e.touches[0].clientX : e.clientX;
+      const cy = e.touches ? e.touches[0].clientY : e.clientY;
+      const dx = cx - this._dragStartX;
+      const dy = cy - this._dragStartY;
 
-    this.container.addEventListener('touchend', (e) => {
-      if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-      handleTap(e);
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) this._hasDragged = true;
+
+      this._offsetX += dx;
+      this._offsetY += dy;
+      this._dragStartX = cx;
+      this._dragStartY = cy;
+
+      this.worldMesh.style.transform = `translate(${this._offsetX}px, ${this._offsetY}px) scale(${this._scale})`;
+    };
+
+    const onEnd = () => {
+      this._isDragging = false;
+      this.container.classList.remove('grabbing');
+    };
+
+    // Pan handlers.
+    this.container.addEventListener('mousedown', onStart);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+    this.container.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+
+    // Click handler for tiles.
+    this.gridEl.addEventListener('click', (e) => {
+      if (this._hasDragged) return;
+      const cell = e.target.closest('.worldmap-cell');
+      if (!cell) return;
+
+      const r = parseInt(cell.dataset.r);
+      const c = parseInt(cell.dataset.c);
+      this._handleCellClick(r, c);
     });
 
-    // Mouse handling for desktop.
-    this.container.addEventListener('click', handleTap);
-
-    // Keyboard arrows for movement.
+    // Keyboard.
     document.addEventListener('keydown', (e) => {
-      if (!this.map) return;
-      const dir = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
-      const d = dir[e.key];
-      if (d) {
-        e.preventDefault();
-        this._handleCellTap(this.map.playerPos.r + d[0], this.map.playerPos.c + d[1]);
-      }
+      const dirs = { ArrowUp: [-1,0], ArrowDown: [1,0], ArrowLeft: [0,-1], ArrowRight: [0,1] };
+      const d = dirs[e.key];
+      if (!d) return;
+      e.preventDefault();
+      this._handleCellClick(this.map.playerPos.r + d[0], this.map.playerPos.c + d[1]);
     });
   }
 
-  _handleCellTap(r, c) {
+  _handleCellClick(r, c) {
     const pos = this.map.playerPos;
 
-    // Teleport mode: click on grace to teleport.
+    // Teleport mode.
     if (this.map.teleportMode) {
       const obj = this.map.getObjectAt(r, c);
       if (obj?.type === 'grace' && obj.isActive) {
-        const result = this.map.teleportTo(obj.id);
-        if (result) {
-          this.updateTiles();
-          this.updateCamera();
-          this._emit('teleport', result);
+        const res = this.map.teleportTo(obj.id);
+        if (res) {
+          this._updateFogAndWalkable();
+          this.centerOnPlayer();
+          this._emit('teleport', res);
         }
-        return;
+      } else {
+        this.map.teleportMode = false;
+        this._emit('teleport-cancel');
       }
-      // Cancel teleport mode on non-grace click.
-      this.map.teleportMode = false;
-      this._emit('teleport-cancel');
       return;
     }
 
-    // Movement: tap adjacent cell to move.
+    // Tap self → interact with POI.
     if (r === pos.r && c === pos.c) {
-      // Tap self → interact with POI at current position.
       const obj = this.map.getObjectAt(pos.r, pos.c);
-      if (obj) {
-        this._onPOITap(obj);
-      }
+      if (obj) this._onPOITap(obj);
       return;
     }
 
-    const result = this.map.movePlayer({ r, c });
-    if (result) {
-      this.updateTiles();
-      this.updateCamera();
-      this._emit('move', result);
+    // Move to adjacent walkable cell.
+    const res = this.map.movePlayer({ r, c });
+    if (res) {
+      this._updateFogAndWalkable();
+      this.centerOnPlayer();
+      this._emit('move', res);
     }
   }
 
@@ -251,22 +260,19 @@ export class WorldMapUI {
       case 'grace':
         if (!obj.isActive) {
           const res = this.map.interact(obj);
-          this.updateTiles();
+          this._updateFogAndWalkable();
           this._emit('interact', res);
         } else {
-          // Activated grace → offer teleport mode.
           this.map.toggleTeleportMode();
           this._emit('teleport-mode');
         }
         break;
-
       case 'chest':
         if (!obj.opened) {
           const res = this.map.interact(obj);
           if (res) this._emit('interact', res);
         }
         break;
-
       case 'boss_entrance':
       case 'dungeon':
         const res = this.map.interact(obj);
@@ -274,15 +280,6 @@ export class WorldMapUI {
         break;
     }
   }
-
-  _onGraceLongPress(obj) {
-    if (obj.type === 'grace' && obj.isActive) {
-      this.map.toggleTeleportMode();
-      this._emit('teleport-mode');
-    }
-  }
-
-  // ─── Event Emitter ──────────────────────────────
 
   _listeners = {};
 
