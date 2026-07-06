@@ -304,27 +304,24 @@ const Game = {
     // Base hit: if player clicks a revealed enemy cell, apply a small default damage.
     // (This must be before the general "revealed return".)
     if (cell.revealed && (cell.card.type === DUNGEON_TEMPLATES.enemy || isDomEnemy) && !cell.card.defeated) {
-      // default hit costs 1 stamina
+      // default hit costs 1 stamina; at 0 stamina still deals half damage with no cost.
       const baseCost = 1;
-      if (run.player.stamina < baseCost) {
-        // Out of stamina: treat as a "miss" — no damage shown but still count as an action tick.
-        // Enemies should still react (advanceWorldTick).
-        GridUI.animateHit(cell);
-        GridUI.updateCell(cell);
-        HUD.update(this.state);
-        this.advanceWorldTick();
-        return;
+      const hasStamina = run.player.stamina >= baseCost;
+      if (hasStamina) {
+        run.player.stamina -= baseCost;
       }
 
-      run.player.stamina -= baseCost;
-
-      const base = 2 + (run.player.strength || 0);
-      cell.card.hp -= base;
+      let dmg = 2 + (run.player.strength || 0);
+      if (!hasStamina) {
+        // Low stamina penalty: half damage, no cost.
+        dmg = Math.max(1, Math.floor(dmg / 2));
+      }
+      cell.card.hp -= dmg;
       if (cell.card.hp <= 0) {
         CombatEngine.defeatEnemy(cell, run);
       }
       GridUI.animateHit(cell);
-      GridUI.showDamageNumber(cell, base, 'damage');
+      GridUI.showDamageNumber(cell, dmg, 'damage');
       GridUI.updateCell(cell);
       HUD.update(this.state);
       this.advanceWorldTick();
@@ -409,20 +406,12 @@ const Game = {
     }
   },
 
-  playCardOnTarget(uuid, targetRow, targetCol) {
+   playCardOnTarget(uuid, targetRow, targetCol) {
     const run = this.state.run;
     const card = run.deck.hand.find(c => c.uuid === uuid);
     if (!card) return;
 
-    // If we can't play the card, remove selection and re-render.
-    // Costs are paid in stamina.
-    if (run.player.stamina < card.cost) {
-      this.selectedHandCard = null;
-      HandUI.selectCard(null);
-      HandUI.render(this.state, document.getElementById('hand-container'));
-      return;
-    }
-
+    // Low stamina: attack cards still playable at half power (combat.js handles penalty).
     let targetCell = null;
     if (targetRow !== null && targetCol !== null) {
       targetCell = run.dungeon.grid.find(c => c.row === targetRow && c.col === targetCol);
