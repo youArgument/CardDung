@@ -361,9 +361,10 @@ const Game = {
   leaveWorldMap() {
     // Save world state.
     if (this.worldMap) {
-      let saved = SaveSystem.load() || {};
-      saved.worldState = this.worldMap.serialize();
-      SaveSystem.save(saved);
+      const ws = this.worldMap.serialize();
+      const existing = SaveSystem.load() || {};
+      // Merge worldState into the full game state before saving.
+      SaveSystem.save({ ...this.state, worldState: ws });
     }
     this.worldMapUI = null;
     this.showScreen('hub');
