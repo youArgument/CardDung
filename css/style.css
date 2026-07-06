@@ -405,6 +405,7 @@ html, body {
   margin-top: 2px;
 }
 .hand-card.unplayable { opacity: 0.4; }
+.card-power-pct { font-size: 9px; color: var(--accent-red); font-weight: 700; margin-top: -2px; }
 
 /* ===== REWARD SCREEN ===== */
 .reward-content {
@@ -675,6 +676,28 @@ html, body {
 .upgrade-name { font-size: 12px; font-weight: 700; color: var(--text-dark); }
 .upgrade-desc { font-size: 10px; color: #666; }
 .upgrade-level { font-size: 10px; color: var(--accent-purple); font-weight: 700; }
+
+/* Stats Section */
+.stats-section { margin-bottom: 16px; }
+.section-title { font-size: 13px; font-weight: 900; color: var(--accent-gold); letter-spacing: 2px; margin-bottom: 8px; text-align: center; }
+.stat-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg-card); border: 2px solid var(--border-light);
+  padding: 8px 10px; margin-bottom: 6px; transition: border-color 0.2s;
+}
+.stat-row.maxed { opacity: 0.5; }
+.stat-icon { font-size: 22px; width: 30px; text-align: center; }
+.stat-info { flex: 1; }
+.stat-name { font-size: 12px; font-weight: 700; color: var(--text-dark); }
+.stat-value { font-size: 10px; color: #888; margin-top: 1px; }
+.stat-value strong { color: var(--accent-gold); }
+.btn-stat-upgrade {
+  background: var(--accent-purple); color: white; border: none; padding: 6px 12px;
+  font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer; letter-spacing: 1px;
+}
+.btn-stat-upgrade:hover { background: #8a5fcf; }
+.btn-stat-upgrade:disabled { opacity: 0.3; cursor: default; }
+.stat-maxed { font-size: 10px; color: var(--accent-purple); font-weight: 700; }
 .upgrade-cost {
   background: var(--accent-gold);
   color: var(--text-dark);

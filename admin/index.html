@@ -387,9 +387,35 @@
         rmBtn.addEventListener('click', () => { effectsList.splice(idx, 1); renderEffects(); updatePreview(); });
 
         row.innerHTML = `<span style="font-size:11px;color:#666">#${idx+1}</span>`;
+        // Req section (stat requirements)
+        const reqSection = document.createElement('div');
+        reqSection.style.cssText = 'display:flex;gap:4px;align-items:center;margin-left:auto;padding:2px 6px;background:#1a1a1a;border:1px solid #333;font-size:10px';
+        const req = efx.req || {};
+        reqSection.innerHTML = `
+          <span style="color:#888">REQ:</span>
+          <label style="color:#c9a84c">STR<input type="number" value="${req.strength||''}" data-req="${idx}" data-stat="strength" min="0" style="width:36px;padding:2px;background:#1a1a1a;border:1px solid #444;color:#e8e4dc;font-size:10px"></label>
+          <label style="color:#5b7fa5">AGI<input type="number" value="${req.agility||''}" data-req="${idx}" data-stat="agility" min="0" style="width:36px;padding:2px;background:#1a1a1a;border:1px solid #444;color:#e8e4dc;font-size:10px"></label>
+          <label style="color:#5b7fa5">INT<input type="number" value="${req.intelligence||''}" data-req="${idx}" data-stat="intelligence" min="0" style="width:36px;padding:2px;background:#1a1a1a;border:1px solid #444;color:#e8e4dc;font-size:10px"></label>
+          <label style="color:#5b7fa5">WIL<input type="number" value="${req.will||''}" data-req="${idx}" data-stat="will" min="0" style="width:36px;padding:2px;background:#1a1a1a;border:1px solid #444;color:#e8e4dc;font-size:10px"></label>
+        `;
         row.appendChild(sel);
         row.insertAdjacentHTML('beforeend', fieldsHtml);
+        row.appendChild(reqSection);
         row.appendChild(rmBtn);
+
+        // Req input listeners
+        reqSection.querySelectorAll('input').forEach(inp => {
+          inp.addEventListener('input', () => {
+            const rIdx = parseInt(inp.dataset.req);
+            const stat = inp.dataset.stat;
+            if (!effectsList[rIdx].req) effectsList[rIdx].req = {};
+            const val = parseInt(inp.value) || 0;
+            if (val > 0) effectsList[rIdx].req[stat] = val;
+            else delete effectsList[rIdx].req[stat];
+            updatePreview();
+          });
+        });
+
         container.appendChild(row);
 
         // Bind param inputs.

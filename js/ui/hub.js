@@ -200,18 +200,78 @@ export class HubUI {
     const container = document.getElementById('upgrade-list');
     container.innerHTML = '';
 
+    // Get current class base stats
+    const classId = this.game.state.selectedClassId || 'warrior';
+    const { CLASSES } = await import('../data/classes.js');
+    const classData = CLASSES[classId] || CLASSES.warrior;
+
+    // Stat upgrade IDs and their corresponding stat keys
+    const statUpgrades = [
+      { id: 'statStr', key: 'strength' },
+      { id: 'statAgi', key: 'agility' },
+      { id: 'statInt', key: 'intelligence' },
+      { id: 'statWill', key: 'will' },
+    ];
+
+    // Render stats section
+    const statsSection = document.createElement('div');
+    statsSection.className = 'stats-section';
+    const statsTitle = document.createElement('div');
+    statsTitle.className = 'section-title';
+    statsTitle.textContent = t('safehouse.stats_title');
+    statsSection.appendChild(statsTitle);
+
+    for (const su of statUpgrades) {
+      const baseVal = classData.stats[su.key] || 0;
+      const bonusLevel = hub.getUpgradeLevel(su.id);
+      const totalVal = baseVal + bonusLevel;
+      const upgrade = UPGRADES[su.id];
+      const maxed = bonusLevel >= upgrade.maxLevel;
+      const cost = getUpgradeCost(su.id, bonusLevel);
+
+      const statRow = document.createElement('div');
+      statRow.className = `stat-row ${maxed ? 'maxed' : ''}`;
+      statRow.innerHTML = `
+        <div class="stat-icon">${upgrade.icon}</div>
+        <div class="stat-info">
+          <div class="stat-name">${t(`stat.${su.key}.name`)}</div>
+          <div class="stat-value">${baseVal} + ${bonusLevel} = <strong>${totalVal}</strong></div>
+        </div>
+        ${maxed ? `<div class="stat-maxed">${t('safehouse.maxed')}</div>` : `<button class="btn-stat-upgrade" data-id="${su.id}" ${gold < cost ? 'disabled' : ''}>◆ ${cost}</button>`}
+      `;
+
+      if (!maxed) {
+        const btn = statRow.querySelector('.btn-stat-upgrade');
+        btn.addEventListener('click', () => {
+          if (hub.buyUpgrade(su.id)) {
+            this.game.audio.playSelect();
+            this.renderSafehouse();
+            this.updateHub();
+          }
+        });
+      }
+
+      statsSection.appendChild(statRow);
+    }
+    container.appendChild(statsSection);
+
+    // Render regular upgrades (non-stat)
     for (const [id, upgrade] of Object.entries(UPGRADES)) {
+      if (upgrade.statType) continue; // Skip stat upgrades — already rendered above
+
       const level = hub.getUpgradeLevel(id);
       const maxed = level >= upgrade.maxLevel;
       const cost = getUpgradeCost(id, level);
 
       const el = document.createElement('div');
       el.className = `upgrade-item ${maxed ? 'maxed' : ''}`;
+      const name = t(upgrade.nameKey, upgrade.name);
+      const desc = t(upgrade.descKey, upgrade.desc);
       el.innerHTML = `
         <div class="upgrade-icon">${upgrade.icon}</div>
         <div class="upgrade-info">
-          <div class="upgrade-name">${upgrade.name}</div>
-          <div class="upgrade-desc">${upgrade.desc}</div>
+          <div class="upgrade-name">${name}</div>
+          <div class="upgrade-desc">${desc}</div>
           <div class="upgrade-level">${maxed ? t('safehouse.maxed') : `Lv ${level}/${upgrade.maxLevel}`}</div>
         </div>
         ${maxed ? '' : `<div class="upgrade-cost">◆ ${cost}</div>`}

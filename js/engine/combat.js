@@ -15,16 +15,42 @@ export class CombatEngine {
     return { type: 'defeat', cell, gold: cell.card.gold };
   }
 
+  // Calculate stat penalty multiplier: min(1.0, playerStat / reqStat), floor at 0.3
+  static getStatMultiplier(effect, pStats) {
+    const req = effect.req;
+    if (!req || !pStats) return 1.0;
+    let multiplier = 1.0;
+    // STR-based effects (damage/physical attacks)
+    if (req.strength && pStats.strength !== undefined) {
+      multiplier = Math.min(multiplier, pStats.strength / req.strength);
+    }
+    if (req.agility && pStats.agility !== undefined) {
+      multiplier = Math.min(multiplier, pStats.agility / req.agility);
+    }
+    if (req.intelligence && pStats.intelligence !== undefined) {
+      multiplier = Math.min(multiplier, pStats.intelligence / req.intelligence);
+    }
+    if (req.will && pStats.will !== undefined) {
+      multiplier = Math.min(multiplier, pStats.will / req.will);
+    }
+    return Math.max(0.3, multiplier);
+  }
+
   // Process a single effect against the game state.
   static processEffect(effect, card, targetCell, p, run, hasFullStamina) {
     const results = [];
     const efx = effect;
+    const pStats = p.stats || {};
+    const statMult = CombatEngine.getStatMultiplier(efx, pStats);
 
     switch (efx.action) {
       case 'damage': {
         if (!targetCell || targetCell.card.type !== DUNGEON_TEMPLATES.enemy || targetCell.card.defeated) break;
         let str = p.strength + (run.buffs?.str?.value || 0);
-        let dmg = (efx.power || card.power || 0) + str + (run.mergeBonus || 0);
+        let basePower = efx.power || card.power || 0;
+        // Apply stat penalty to power portion
+        basePower = Math.max(1, Math.round(basePower * statMult));
+        let dmg = basePower + str + (run.mergeBonus || 0);
         if (!hasFullStamina) dmg = Math.max(1, Math.floor(dmg / 2));
         targetCell.card.hp -= dmg;
         results.push({ type: 'damage', amount: dmg, cell: targetCell });
@@ -38,7 +64,9 @@ export class CombatEngine {
         for (const cell of run.dungeon.grid) {
           if (!cell.revealed || cell.card.type !== DUNGEON_TEMPLATES.enemy || cell.card.defeated) continue;
           let str = p.strength + (run.buffs?.str?.value || 0);
-          let dmg = (efx.power || card.power || 0) + str + (run.mergeBonus || 0);
+          let basePower = efx.power || card.power || 0;
+          basePower = Math.max(1, Math.round(basePower * statMult));
+          let dmg = basePower + str + (run.mergeBonus || 0);
           if (!hasFullStamina) dmg = Math.max(1, Math.floor(dmg / 2));
           cell.card.hp -= dmg;
           results.push({ type: 'damage', amount: dmg, cell });
@@ -50,15 +78,17 @@ export class CombatEngine {
         break;
       }
       case 'heal': {
-        const amt = efx.amount || card.heal || 0;
+        let amt = efx.amount || card.heal || 0;
         if (!amt) break;
+        amt = Math.max(1, Math.round(amt * statMult));
         p.hp = Math.min(p.hp + amt, p.maxHp);
         results.push({ type: 'heal', amount: amt });
         break;
       }
       case 'armor': {
-        const amt = efx.amount || card.power || 0;
+        let amt = efx.amount || card.power || 0;
         if (!amt) break;
+        amt = Math.max(1, Math.round(amt * statMult));
         p.armor += amt;
         results.push({ type: 'armor', amount: amt });
         break;

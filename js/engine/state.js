@@ -22,6 +22,17 @@ export class GameState {
     const classData = CLASSES[classId] || CLASSES.warrior;
     this.selectedClassId = classId;
     const upg = this.upgrades;
+    // Stat bonuses from safehouse upgrades
+    const bonusStr = (upg.statStr || 0);
+    const bonusAgi = (upg.statAgi || 0);
+    const bonusInt = (upg.statInt || 0);
+    const bonusWill = (upg.statWill || 0);
+    // Total stats = class base + upgrade bonuses
+    const totalStr = classData.stats.strength + bonusStr;
+    const totalAgi = classData.stats.agility + bonusAgi;
+    const totalInt = classData.stats.intelligence + bonusInt;
+    const totalWill = classData.stats.will + bonusWill;
+
     this.run = {
       player: {
         hp: classData.stats.vitality + (upg.startHp || 0),
@@ -31,7 +42,13 @@ export class GameState {
         stamina: 100 + (upg.startStamina || 0) * 10,
         maxStamina: 100 + (upg.startStamina || 0) * 10,
         gold: 0,
-        strength: Math.floor(classData.stats.strength / 2),
+        strength: Math.floor(totalStr / 2),
+        stats: {
+          strength: totalStr,
+          agility: totalAgi,
+          intelligence: totalInt,
+          will: totalWill,
+        },
         classStats: { ...classData.stats }
       },
       deck: new Deck(),

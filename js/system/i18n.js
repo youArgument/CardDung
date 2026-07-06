@@ -41,6 +41,28 @@ const translations = {
     // Safehouse
     'safehouse.upgrade': 'UPGRADE',
     'safehouse.maxed': 'MAXED',
+    'safehouse.stats_title': 'Character Stats',
+    'upgrade.stat.desc': '+1 per level',
+
+    // Stats
+    'stat.strength.name': 'Strength',
+    'stat.agility.name': 'Agility',
+    'stat.intelligence.name': 'Intelligence',
+    'stat.will.name': 'Willpower',
+
+    // Upgrades (nameKey/descKey)
+    'upgrade.start_armor.name': 'Starting Armor',
+    'upgrade.start_armor.desc': '+1 starting armor per level',
+    'upgrade.start_hp.name': 'Vitality',
+    'upgrade.start_hp.desc': '+1 max HP per level',
+    'upgrade.extra_reveal.name': 'Extra Reveal',
+    'upgrade.extra_reveal.desc': '+1 reveal every 3 turns',
+    'upgrade.start_stamina.name': 'Stamina Reserve',
+    'upgrade.start_stamina.desc': '+10 max stamina per level',
+    'upgrade.card_draw.name': 'Card Draw',
+    'upgrade.card_draw.desc': '+1 card drawn each turn',
+    'upgrade.merge_bonus.name': 'Merge Bonus',
+    'upgrade.merge_bonus.desc': 'Merged cards deal +1 damage per level',
 
     // Dungeon HUD
     'dungeon.room': 'Room {0}/{1}',
@@ -226,6 +248,28 @@ const translations = {
     // Safehouse
     'safehouse.upgrade': 'УЛУЧШИТЬ',
     'safehouse.maxed': 'МАКС',
+    'safehouse.stats_title': 'Характеристики Персонажа',
+    'upgrade.stat.desc': '+1 за уровень',
+
+    // Stats
+    'stat.strength.name': 'Сила',
+    'stat.agility.name': 'Ловкость',
+    'stat.intelligence.name': 'Интеллект',
+    'stat.will.name': 'Воля',
+
+    // Upgrades (nameKey/descKey)
+    'upgrade.start_armor.name': 'Стартовая Броня',
+    'upgrade.start_armor.desc': '+1 стартовой брони за уровень',
+    'upgrade.start_hp.name': 'Живучесть',
+    'upgrade.start_hp.desc': '+1 макс HP за уровень',
+    'upgrade.extra_reveal.name': 'Доп. Открытие',
+    'upgrade.extra_reveal.desc': '+1 открытие каждые 3 хода',
+    'upgrade.start_stamina.name': 'Запас Стамины',
+    'upgrade.start_stamina.desc': '+10 макс стамины за уровень',
+    'upgrade.card_draw.name': 'Добор Карт',
+    'upgrade.card_draw.desc': '+1 карта каждый ход',
+    'upgrade.merge_bonus.name': 'Бонус Слияния',
+    'upgrade.merge_bonus.desc': 'Слитые карты наносят +1 урона за уровень',
 
     // Dungeon HUD
     'dungeon.room': 'Комната {0}/{1}',
