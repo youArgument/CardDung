@@ -384,24 +384,24 @@ html, body {
   transform: translateY(-8px);
 }
 .hand-card .card-cost {
-  position: absolute; top: -4px; right: -4px;
+  position: absolute; top: -3px; right: -3px;
   background: var(--accent-blue);
-  color: white; font-size: 11px; font-weight: 800;
-  width: 20px; height: 20px;
+  color: white; font-size: 9px; font-weight: 800;
+  width: 16px; height: 16px;
   display: flex; align-items: center; justify-content: center;
 }
 .hand-card .card-power {
-  position: absolute; top: -4px; left: -4px;
+  position: absolute; top: -3px; left: -3px;
   background: var(--accent-red);
-  color: white; font-size: 11px; font-weight: 800;
-  width: 20px; height: 20px;
+  color: white; font-size: 9px; font-weight: 800;
+  width: 16px; height: 16px;
   display: flex; align-items: center; justify-content: center;
 }
 .hand-card .card-power-penalty {
-  position: absolute; top: -4px; left: -4px;
+  position: absolute; top: -3px; left: -3px;
   background: #6b3a3a;
-  color: #ff9999; font-size: 11px; font-weight: 800;
-  width: 20px; height: 20px;
+  color: #ff9999; font-size: 9px; font-weight: 800;
+  width: 16px; height: 16px;
   display: flex; align-items: center; justify-content: center;
 }
 .hand-card.stat-penalty { opacity: 0.65; }

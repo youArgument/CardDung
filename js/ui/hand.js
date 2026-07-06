@@ -32,11 +32,12 @@ export class HandUI {
 
       if (run.player.stamina < card.cost) el.classList.add('unplayable');
 
-      // Calculate actual power with stat penalty
+      // Calculate actual damage with stat penalty (matches combat.js formula)
       let displayPower = null;
       const mult = HandUI.getCardStatMultiplier(card, pStats);
       if (card.type === 'attack' || card.type === 'attack-all') {
-        displayPower = Math.max(1, Math.round((card.power || 0) * mult));
+        const rawDmg = (card.power || 0) + (run.player.strength || 0);
+        displayPower = mult < 1.0 ? Math.max(1, Math.round(rawDmg * mult)) : rawDmg;
         if (mult < 1.0) el.classList.add('stat-penalty');
       }
 

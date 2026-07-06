@@ -48,9 +48,12 @@ export class CombatEngine {
         if (!targetCell || targetCell.card.type !== DUNGEON_TEMPLATES.enemy || targetCell.card.defeated) break;
         let str = p.strength + (run.buffs?.str?.value || 0);
         let basePower = efx.power || card.power || 0;
-        // Apply stat penalty to power portion
-        basePower = Math.max(1, Math.round(basePower * statMult));
-        let dmg = basePower + str + (run.mergeBonus || 0);
+        // Apply stat penalty to the entire damage calculation
+        let totalDmg = basePower + str + (run.mergeBonus || 0);
+        if (statMult < 1.0) {
+          totalDmg = Math.max(1, Math.round(totalDmg * statMult));
+        }
+        let dmg = totalDmg;
         if (!hasFullStamina) dmg = Math.max(1, Math.floor(dmg / 2));
         targetCell.card.hp -= dmg;
         results.push({ type: 'damage', amount: dmg, cell: targetCell });
@@ -65,8 +68,11 @@ export class CombatEngine {
           if (!cell.revealed || cell.card.type !== DUNGEON_TEMPLATES.enemy || cell.card.defeated) continue;
           let str = p.strength + (run.buffs?.str?.value || 0);
           let basePower = efx.power || card.power || 0;
-          basePower = Math.max(1, Math.round(basePower * statMult));
-          let dmg = basePower + str + (run.mergeBonus || 0);
+          let totalDmg = basePower + str + (run.mergeBonus || 0);
+          if (statMult < 1.0) {
+            totalDmg = Math.max(1, Math.round(totalDmg * statMult));
+          }
+          let dmg = totalDmg;
           if (!hasFullStamina) dmg = Math.max(1, Math.floor(dmg / 2));
           cell.card.hp -= dmg;
           results.push({ type: 'damage', amount: dmg, cell });
