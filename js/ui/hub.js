@@ -1,4 +1,5 @@
 import { PLAYER_CARDS } from '../data/cards.js';
+import { CLASSES } from '../data/classes.js';
 import { UPGRADES, getUpgradeCost } from '../data/upgrades.js';
 import { t } from '../system/i18n.js';
 
@@ -202,7 +203,6 @@ export class HubUI {
 
     // Get current class base stats
     const classId = this.game.state.selectedClassId || 'warrior';
-    const { CLASSES } = await import('../data/classes.js');
     const classData = CLASSES[classId] || CLASSES.warrior;
 
     // Stat upgrade IDs and their corresponding stat keys
