@@ -100,6 +100,25 @@ const Game = {
       handleGridTap(cardEl);
     });
 
+    // Long press on enemy cells to inspect hand.
+    let longPressTimer = null;
+    let longPressFired = false;
+    const startLongPress = (cardEl) => {
+      if (!cardEl || !cardEl.classList.contains('enemy-card')) return;
+      longPressFired = false;
+      longPressTimer = setTimeout(() => {
+        longPressFired = true;
+        this.showEnemyHandPopup(cardEl);
+      }, 500);
+    };
+    const cancelLongPress = () => { clearTimeout(longPressTimer); };
+    gridEl.addEventListener('touchstart', (e) => startLongPress(e.target.closest('.dungeon-card')), { passive: true });
+    gridEl.addEventListener('touchend', cancelLongPress);
+    gridEl.addEventListener('touchmove', cancelLongPress);
+    gridEl.addEventListener('mousedown', (e) => startLongPress(e.target.closest('.dungeon-card')));
+    gridEl.addEventListener('mouseup', cancelLongPress);
+    gridEl.addEventListener('mouseleave', cancelLongPress);
+
     // Hand
     const handEl = document.getElementById('hand-container');
     handEl.dataset.wasDragging = '0';
@@ -121,6 +140,11 @@ const Game = {
     // Card popup close on backdrop
     document.getElementById('card-popup').addEventListener('click', (e) => {
       if (e.target.id === 'card-popup') this.hubUI.hidePopup();
+    });
+
+    // Enemy hand popup close
+    document.getElementById('enemy-hand-popup').addEventListener('click', (e) => {
+      if (e.target.id === 'enemy-hand-popup' || e.target.id === 'btn-enemy-hand-close') this.hideEnemyHandPopup();
     });
 
     // Exit popup
@@ -619,6 +643,60 @@ const Game = {
   onExitToHub() {
     this.hideExitPopup();
     this.onEscape();
+  },
+
+  showEnemyHandPopup(cardEl) {
+    const row = parseInt(cardEl.dataset.row);
+    const col = parseInt(cardEl.dataset.col);
+    const run = this.state.run;
+    if (!run) return;
+    const cell = run.dungeon.grid.find(c => c.row === row && c.col === col);
+    if (!cell || !cell.card._enemyHand || cell.card._enemyHand.length === 0) {
+      // No hand to show — skip.
+      return;
+    }
+
+    const popup = document.getElementById('enemy-hand-popup');
+    const listEl = document.getElementById('enemy-hand-list');
+    listEl.innerHTML = '';
+    const lang = localStorage.getItem('carddung-lang') || 'en';
+
+    for (const hc of cell.card._enemyHand) {
+      const item = document.createElement('div');
+      item.className = 'enemy-hand-item';
+      // Determine icon from first effect action.
+      const ffx = hc.effects?.[0];
+      let icon = '🂠';
+      if (ffx?.action === 'damage_player') icon = '⚔️';
+      else if (ffx?.action === 'enemy_armor') icon = '🛡️';
+      else if (ffx?.action === 'heal_enemy') icon = '💚';
+      else if (ffx?.action === 'enemy_retreat') icon = '🏃';
+      else if (ffx?.action === 'enemy_buff') icon = '🔥';
+      const name = lang === 'ru' ? hc.nameRu : hc.nameEn;
+      // Build short description from effects.
+      let desc = '';
+      for (const efx of (hc.effects || [])) {
+        if (efx.action === 'damage_player') desc += `-${efx.power || 0} HP`;
+        else if (efx.action === 'enemy_armor') desc += `+${efx.amount || 0} 🛡️`;
+        else if (efx.action === 'heal_enemy') desc += `+${efx.amount || 0} HP`;
+        else if (efx.action === 'freeze_player_card') desc += `❄️ freeze`;
+        else if (efx.action === 'enemy_discard') desc += `discard x${efx.count || 1}`;
+      }
+      item.innerHTML = `
+        <div class="enemy-hand-item-icon">${icon}</div>
+        <div class="enemy-hand-item-info">
+          <div class="enemy-hand-item-name">${name}</div>
+          ${desc ? `<div class="enemy-hand-item-desc">${desc.trim()}</div>` : ''}
+        </div>
+      `;
+      listEl.appendChild(item);
+    }
+
+    popup.classList.remove('hidden');
+  },
+
+  hideEnemyHandPopup() {
+    document.getElementById('enemy-hand-popup').classList.add('hidden');
   },
 
   updateRoomProgress() {

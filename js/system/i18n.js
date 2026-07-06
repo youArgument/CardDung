@@ -126,7 +126,9 @@ const translations = {
     'enemy.orc.name': 'Orc',
     'enemy.demon.name': 'Demon',
     'enemy.dragon.name': 'Dragon',
-    'enemy.lich.name': 'Lich',
+     'enemy.lich.name': 'Lich',
+     'enemy.hand_title': 'Enemy Hand',
+
 
     // Items
     'item.health_potion.name': 'Potion',
@@ -309,7 +311,8 @@ const translations = {
     'enemy.orc.name': 'Орк',
     'enemy.demon.name': 'Демон',
     'enemy.dragon.name': 'Дракон',
-    'enemy.lich.name': 'Лич',
+     'enemy.lich.name': 'Лич',
+     'enemy.hand_title': 'Карты врага',
 
     // Items
     'item.health_potion.name': 'Зелье',

@@ -698,6 +698,15 @@ html, body {
 .popup-desc { font-size: 12px; color: #666; margin: 8px 0; }
 .popup-stats { font-size: 11px; color: var(--accent-blue); font-weight: 700; margin-bottom: 12px; }
 .popup-actions { display: flex; gap: 8px; justify-content: center; }
+.enemy-hand-list { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; min-width: 180px; }
+.enemy-hand-item {
+  background: var(--bg-panel); border: 1.5px solid #c9a84c; padding: 8px; text-align: left;
+  display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-primary);
+}
+.enemy-hand-item-icon { font-size: 20px; width: 30px; text-align: center; }
+.enemy-hand-item-info { flex: 1; }
+.enemy-hand-item-name { font-weight: 700; font-size: 12px; color: var(--accent-gold); }
+.enemy-hand-item-desc { font-size: 10px; color: #888; margin-top: 2px; }
 .popup-btn {
   padding: 6px 14px;
   font-family: 'Courier New', monospace;
