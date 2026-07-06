@@ -5,6 +5,50 @@ const STAT_MAP = {
   STR: 'strength', AGI: 'agility', INT: 'intelligence', WIL: 'will', VIT: 'vitality'
 };
 
+// Tag-based modifiers applied after base formula calculation.
+function applyTagModifiers(card, value, pStats, run) {
+  const tags = card.tags || [];
+  const artifact = run.artifact;
+  let modifier = 0;
+
+  // Iron Belt: +20% Physical damage/armor
+  if (artifact?.id === 'iron_belt' && tags.includes('Physical')) {
+    modifier += value * 0.20;
+  }
+  // Tome: +15% Magic damage per INT point above base (capped)
+  if (artifact?.id === 'tome' && tags.includes('Magic')) {
+    const intBonus = Math.max(0, pStats.intelligence - 4);
+    modifier += value * Math.min(intBonus * 0.03, 0.30);
+  }
+  // Rogue Cloak: +15% backstab/melee damage for rogue playstyle
+  if (artifact?.id === 'rogue_cloak' && (tags.includes('Backstab') || tags.includes('Melee'))) {
+    modifier += value * 0.15;
+  }
+
+  // Tag-based room effects: AOE gets +damage per active enemy debuff
+  if (tags.includes('AOE') && run.debuffs) {
+    const debuffCount = Object.keys(run.debuffs).length;
+    modifier += value * Math.min(debuffCount * 0.05, 0.20);
+  }
+
+  // Holy: +heal/armor per WIL (3% per point above 4)
+  if ((tags.includes('Holy') || card.damageType === 'Heal') && pStats.will > 4) {
+    modifier += value * Math.min((pStats.will - 4) * 0.03, 0.25);
+  }
+
+  // LifeSteal: heal amount scales with VIT (2% per point above 4)
+  if (tags.includes('LifeSteal') && pStats.vitality > 4) {
+    modifier += value * Math.min((pStats.vitality - 4) * 0.02, 0.15);
+  }
+
+  // Evasion: dodge chance bonus from AGI (applied as armor equivalent)
+  if (tags.includes('Evasion') && pStats.agility > 4) {
+    modifier += value * Math.min((pStats.agility - 4) * 0.04, 0.25);
+  }
+
+  return modifier;
+}
+
 export class CombatEngine {
   // Shared logic: mark enemy as defeated and apply rewards.
   static defeatEnemy(cell, run) {
@@ -81,8 +125,10 @@ export class CombatEngine {
     switch (efx.action) {
       case 'damage': {
         if (!targetCell || targetCell.card.type !== DUNGEON_TEMPLATES.enemy || targetCell.card.defeated) break;
-        // New Combat System 2.0 formula
+        // New Combat System 2.0 formula + tag modifiers
         let dmg = CombatEngine.calculateCardValue(card, pStats);
+        const tagMod = applyTagModifiers(card, dmg, pStats, run);
+        dmg += Math.round(tagMod);
         if (!hasFullStamina) dmg = Math.max(1, Math.floor(dmg / 2));
         targetCell.card.hp -= dmg;
         results.push({ type: 'damage', amount: dmg, cell: targetCell });
@@ -96,6 +142,8 @@ export class CombatEngine {
         for (const cell of run.dungeon.grid) {
           if (!cell.revealed || cell.card.type !== DUNGEON_TEMPLATES.enemy || cell.card.defeated) continue;
           let dmg = CombatEngine.calculateCardValue(card, pStats);
+          const tagMod = applyTagModifiers(card, dmg, pStats, run);
+          dmg += Math.round(tagMod);
           if (!hasFullStamina) dmg = Math.max(1, Math.floor(dmg / 2));
           cell.card.hp -= dmg;
           results.push({ type: 'damage', amount: dmg, cell });
@@ -113,6 +161,8 @@ export class CombatEngine {
         if (card.mainStat || card.statWeights) {
           amt = CombatEngine.calculateCardValue({ ...card, baseDamage: amt }, pStats);
         }
+        const tagMod = applyTagModifiers(card, amt, pStats, run);
+        amt += Math.round(tagMod);
         p.hp = Math.min(p.hp + amt, p.maxHp);
         results.push({ type: 'heal', amount: amt });
         break;
@@ -124,6 +174,8 @@ export class CombatEngine {
         if (card.mainStat || card.statWeights) {
           amt = CombatEngine.calculateCardValue({ ...card, baseDamage: amt }, pStats);
         }
+        const tagMod = applyTagModifiers(card, amt, pStats, run);
+        amt += Math.round(tagMod);
         p.armor += amt;
         results.push({ type: 'armor', amount: amt });
         break;
