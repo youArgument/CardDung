@@ -93,11 +93,14 @@ const translations = {
 
     // Game over screen
     'gameover.title': 'DEFEATED',
-    'gameover.revealed': 'Cards Revealed',
-    'gameover.kills': 'Enemies Slain',
-    'gameover.back_hub': 'BACK TO HUB',
+     'gameover.revealed': 'Cards Revealed',
+     'gameover.kills': 'Enemies Slain',
+     'gameover.back_hub': 'BACK TO HUB',
 
-    // Update banner
+     // World Map
+     'worldmap.title': 'WORLD MAP',
+
+     // Update banner
     'update.available': '🔄 Update available!',
     'update.button': 'Update',
 
@@ -300,11 +303,14 @@ const translations = {
 
     // Game over screen
     'gameover.title': 'ПОРАЖЕНИЕ',
-    'gameover.revealed': 'Карт Раскрыто',
-    'gameover.kills': 'Убито Врагов',
-    'gameover.back_hub': 'В ХАБ',
+     'gameover.revealed': 'Карт Раскрыто',
+     'gameover.kills': 'Убито Врагов',
+     'gameover.back_hub': 'В ХАБ',
 
-    // Update banner
+     // World Map
+     'worldmap.title': 'КАРТА МИРА',
+
+     // Update banner
     'update.available': '🔄 Обновление доступно!',
     'update.button': 'Обновить',
 

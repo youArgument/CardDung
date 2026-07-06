@@ -13,6 +13,8 @@ import { PLAYER_CARDS, loadRemoteCards } from './data/cards.js';
 import { ENEMY_CARDS } from './data/enemies.js';
 import { CLASSES } from './data/classes.js';
 import { t, setLanguage, applyTranslations, getLanguage } from './system/i18n.js';
+import { WorldMap } from './engine/worldmap.js';
+import { WorldMapUI } from './ui/worldmap.js';
 
 // Stat key mapping for Combat System 2.0.
 const STAT_MAP = { STR: 'strength', AGI: 'agility', INT: 'intelligence', WIL: 'will', VIT: 'vitality' };
@@ -22,6 +24,8 @@ const Game = {
   audio: null,
   hub: null,
   hubUI: null,
+  worldMap: null,
+  worldMapUI: null,
   selectedHandCard: null,
   clientVersion: null,
 
@@ -325,6 +329,93 @@ const Game = {
     this.state.run = null;
     this.showScreen('hub');
     this.hubUI.updateHub();
+  },
+
+  // ===== WORLD MAP =====
+  enterWorldMap() {
+    const saved = SaveSystem.load();
+    if (saved?.worldState) {
+      this.worldMap = WorldMap.deserialize(saved.worldState);
+    } else {
+      this.worldMap = new WorldMap(30);
+    }
+
+    const container = document.getElementById('worldmap-container');
+    // Remove old UI instance.
+    if (this.worldMapUI) {
+      this.worldMapUI._listeners = {};
+    }
+    this.worldMapUI = new WorldMapUI('worldmap-container', this.worldMap);
+    this.worldMapUI.updateTiles();
+
+    // Wire up events.
+    this.worldMapUI.on('interact', (res) => this._onWorldInteract(res));
+    this.worldMapUI.on('enter', (res) => this._onWorldEnter(res));
+    this.worldMapUI.on('teleport-mode', () => this._onTeleportMode());
+
+    // Hub button.
+    document.getElementById('btn-worldmap-hub').addEventListener('click', () => this.leaveWorldMap());
+
+    this.showScreen('worldmap');
+  },
+
+  leaveWorldMap() {
+    // Save world state.
+    if (this.worldMap) {
+      const saved = SaveSystem.load();
+      saved = saved || {};
+      saved.worldState = this.worldMap.serialize();
+      SaveSystem.save(saved);
+    }
+    this.worldMapUI = null;
+    this.showScreen('hub');
+    this.hubUI.updateHub();
+  },
+
+  _onWorldInteract(res) {
+    if (res.type === 'grace') {
+      // Grace activated — show notification.
+      const lang = getLanguage();
+      const name = lang === 'ru' ? res.name : res.name;
+      this._showToast(name + (lang === 'ru' ? ' активирована!' : ' activated!'));
+    } else if (res.type === 'chest') {
+      // Chest opened — add gold.
+      this.state.player.gold += res.gold || 0;
+      const lang = getLanguage();
+      this._showToast((lang === 'ru' ? 'Сундук: +' : 'Chest: +') + (res.gold || 0) + ' 🪙');
+    }
+  },
+
+  _onWorldEnter(res) {
+    if (res.type === 'dungeon') {
+      // Enter dungeon from world map.
+      this.leaveWorldMap(); // Save state first.
+      setTimeout(() => this.enterDungeon(), 100);
+    } else if (res.type === 'boss_entrance') {
+      // Boss fight — enter dungeon with boss settings.
+      this.leaveWorldMap();
+      setTimeout(() => this.enterDungeon(res.meta), 100);
+    }
+  },
+
+  _onTeleportMode() {
+    const lang = getLanguage();
+    this._showToast(lang === 'ru' ? 'Выбери Благодать для телепортации' : 'Select a Grace to teleport');
+  },
+
+  _showToast(msg) {
+    // Simple toast notification.
+    let toast = document.getElementById('worldmap-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'worldmap-toast';
+      toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(30,30,30,0.95);color:#c9a84c;padding:12px 24px;border-radius:6px;font-size:13px;z-index:300;pointer-events:none;border:1px solid #c9a84c;opacity:0;transition:opacity 0.3s';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
   },
 
   onDungeonCardClick(row, col) {
