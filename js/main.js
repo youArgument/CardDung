@@ -89,11 +89,13 @@ const Game = {
     document.getElementById('btn-reward-done').addEventListener('click', () => this.afterReward());
 
     // Dungeon grid
-    const gridEl = document.getElementById('dungeon-grid');
-    const handleGridTap = (cardEl) => {
-      if (!cardEl) return;
-      // Block grid interaction while any popup is open.
-      if (document.querySelector('.card-popup:not(.hidden)')) return;
+     const gridEl = document.getElementById('dungeon-grid');
+     const handleGridTap = (cardEl) => {
+       if (!cardEl) return;
+       // Block grid interaction while blocking popups are open (exit, rest, confirm, enemy-hand).
+       // Hand-card stat popup is informational and should NOT block drag/drop.
+       const blockingPopups = document.querySelectorAll('#exit-popup:not(.hidden), #rest-popup:not(.hidden), #class-confirm-popup:not(.hidden), #enemy-hand-popup:not(.hidden)');
+       if (blockingPopups.length > 0) return;
       const row = parseInt(cardEl.dataset.row);
       const col = parseInt(cardEl.dataset.col);
       this.onDungeonCardClick(row, col);
@@ -185,6 +187,11 @@ const Game = {
        }, 500);
      }, { passive: true });
 
+     // Cancel long-press on movement (user is dragging).
+     handEl.addEventListener('touchmove', () => {
+       if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
+     });
+
      handEl.addEventListener('touchend', (e) => {
        if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
      });
@@ -204,6 +211,13 @@ const Game = {
          const pStats = run.player.stats || {};
          this.showHandCardPopup(card, pStats);
        }, 500);
+     });
+
+     // Cancel long-press on mouse move.
+     handEl.addEventListener('mousemove', (e) => {
+       if (_handLongTimer && e.target.closest('.hand-card')) {
+         clearTimeout(_handLongTimer); _handLongTimer = null;
+       }
      });
 
      handEl.addEventListener('mouseup', (e) => {
