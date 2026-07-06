@@ -46,6 +46,10 @@ export class WorldMapUI {
     this.gridEl.innerHTML = '';
     this._tileElements = [];
 
+    // Set grid container dimensions.
+    this.gridEl.style.width = `${size * TILE_SIZE}px`;
+    this.gridEl.style.height = `${size * TILE_SIZE}px`;
+
     for (let r = 0; r < size; r++) {
       this._tileElements[r] = [];
       for (let c = 0; c < size; c++) {
@@ -56,6 +60,8 @@ export class WorldMapUI {
         tile.className = `worldmap-tile worldmap-tile-${cell.tileType}`;
         tile.dataset.r = r;
         tile.dataset.c = c;
+        tile.style.left = `${c * TILE_SIZE}px`;
+        tile.style.top = `${r * TILE_SIZE}px`;
 
         const tileData = BIOME_TILES[cell.tileType] || BIOME_TILES.grass;
         if (tileData.sprite) {
@@ -95,6 +101,10 @@ export class WorldMapUI {
     if (!this.poiLayer) return;
     this.poiLayer.innerHTML = '';
 
+    const size = this.map.size;
+    this.poiLayer.style.width = `${size * TILE_SIZE}px`;
+    this.poiLayer.style.height = `${size * TILE_SIZE}px`;
+
     for (const obj of this.map.objects.values()) {
       const cell = this.map.getCell(obj.r, obj.c);
       if (!cell || cell.fog === FOG.hidden) continue; // Don't show hidden POIs.
@@ -103,6 +113,8 @@ export class WorldMapUI {
       poiEl.className = `worldmap-poi worldmap-poi-${obj.type}`;
       poiEl.dataset.id = obj.id;
       poiEl.textContent = obj.icon || '❓';
+      poiEl.style.left = `${obj.c * TILE_SIZE}px`;
+      poiEl.style.top = `${obj.r * TILE_SIZE}px`;
 
       if (cell.fog === FOG.explored) {
         poiEl.classList.add('poi-explored'); // Dimmed for explored.

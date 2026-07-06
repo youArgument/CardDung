@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Elden Ring PWA - Open World Map</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #05070a; color: #f0e6d2;
+    font-family: 'Georgia', serif; overflow: hidden;
+    display: flex; justify-content: center; align-items: center; height: 100vh;
+    touch-action: none; -webkit-user-select: none; user-select: none;
+  }
+
+  /* Оболочка для портретного режима мобилки */
+  #phone-viewport {
+    width: 100vw; height: 100vh; max-width: 450px; max-height: 850px;
+    background: #090d12; border: 2px solid #3a3124;
+    position: relative; overflow: hidden; display: flex; flex-direction: column;
+  }
+
+  #map-container { flex: 1; position: relative; overflow: hidden; cursor: grab; }
+  #map-container.grabbing { cursor: grabbing; }
+  #world-mesh { position: absolute; transform-origin: 0 0; will-change: transform; }
+  #grid { position: relative; display: grid; gap: 2px; padding: 20px; }
+
+  /* Стили ячеек и Тумана Войны */
+  .cell {
+    width: 54px; height: 54px; position: relative;
+    transition: background 0.3s, border-color 0.3s;
+    border: 1px solid rgba(160, 130, 80, 0.03);
+  }
+  
+  /* Черный туман войны, скрывающий всё */
+  .cell::before {
+    content: ''; position: absolute; inset: 0; background: #020305;
+    z-index: 10; transition: opacity 0.5s ease, background 0.5s; pointer-events: none;
+  }
+  /* Полуоткрытый туман (исследованная зона, где сейчас нет игрока) */
+  .cell.explored::before { opacity: 0.6; background: #0b0f14; }
+  /* Полностью открытая зона (видимость вокруг игрока) */
+  .cell.visible::before { opacity: 0; }
+
+  /* Цвета биомов под туманом */
+  .cell.biome-limgrave { background: #111e16; }
+  .cell.biome-liurnia { opacity: 1; background: #0f1926; }
+  .cell.biome-caelid { background: #241111; }
+  .cell.biome-altus { background: #261f11; }
+
+  /* Подсветка доступных для хода клеток */
+  .cell.walkable { box-shadow: inset 0 0 8px rgba(233, 196, 106, 0.15); border-color: rgba(233, 196, 106, 0.2); cursor: pointer; }
+  .cell.walkable:active { background: rgba(233, 196, 106, 0.1); }
+
+  /* Отрисовка POI (Точек интереса) */
+  .poi-icon {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; font-size: 20px; z-index: 2; opacity: 0; transition: opacity 0.3s;
+  }
+  /* Иконки видны только в исследованных зонах */
+  .explored .poi-icon, .visible .poi-icon { opacity: 1; }
+  
+  /* Специфические стили для активных костров */
+  .cell.grace-active .poi-icon { text-shadow: 0 0 10px #e9c46a, 0 0 20px #ffbb00; animation: pulse 2s infinite; }
+  .cell.grace-discoverable { cursor: pointer; }
+
+  /* Токен игрока */
+  #player {
+    width: 44px; height: 44px; background: radial-gradient(circle, #fff 10%, #e9c46a 70%);
+    border: 2px solid #fff; border-radius: 50%; position: absolute; z-index: 15;
+    pointer-events: none; transition: left 0.25s ease, top 0.25s ease;
+    box-shadow: 0 0 15px #e9c46a; display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+
+  /* Панели интерфейса */
+  #top-hud { background: rgba(10,14,20,0.95); padding: 12px; border-bottom: 1px solid #3a3124; text-align: center; z-index: 100; }
+  #top-hud h1 { font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: #e9c46a; }
+  #bottom-log { background: rgba(10,14,20,0.95); padding: 15px; border-top: 1px solid #3a3124; font-size: 12px; text-align: center; min-height: 65px; color: #c9a063; z-index: 100; }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+</style>
+</head>
+<body>
+
+<div id="phone-viewport">
+  <div id="top-hud">
+    <h1 id="biome-title">Замогилье</h1>
+    <div id="fast-travel-hint" style="font-size: 10px; color: #8c7d67; margin-top: 3px; display:none;">✨ Режим телепортации активен! Выберите костер.</div>
+  </div>
+
+  <div id="map-container">
+    <div id="world-mesh">
+      <div id="grid">
+        <div id="player">🛡️</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bottom-log">Суровый мир Междуземья ждет тебя. Исследуй туман вокруг, совершая шаги на соседние клетки.</div>
+</div>
+
+<script>
+const COLS = 12, ROWS = 12, CELL_SIZE = 54, GAP = 2;
+
+// Симуляция базы данных объектов мира (наш JSON-конфиг)
+const WORLD_OBJECTS = [
+  { r: 1, c: 1, type: 'grace', id: 'limgrave_start', name: 'Первая Благодать', icon: '✨', active: true },
+  { r: 2, c: 9, type: 'grace', id: 'liurnia_lake', name: 'Благодать Озерной Лиурнии', icon: '✨', active: false },
+  { r: 10, c: 2, type: 'grace', id: 'caelid_border', name: 'Благодать Гнилого Каньона', icon: '✨', active: false },
+  { r: 9, c: 10, type: 'grace', id: 'altus_lift', name: 'Благодать подъемника Дектус', icon: '✨', active: false },
+  
+  { r: 2, c: 4, type: 'chest', id: 'chest_1', name: 'Старый Сундук', icon: '📦', reward: 'Карта: Утигатана 🩸' },
+  { r: 5, c: 8, type: 'dungeon', id: 'dungeon_1', name: 'Катакомбы тупика', icon: '🚪', desc: 'Запертые врата подземелья.' },
+  { r: 5, c: 5, type: 'boss', id: 'boss_margit', name: 'Маргит, Ужасное Знамение', icon: '👹' }
+];
+
+let playerPos = { r: 1, c: 1 };
+let gridMap = [];
+let isTeleportMode = false;
+
+// Переменные для Drag&Drop карты
+let offsetX = 0, offsetY = 0, scale = 1.0;
+let isDragging = false, dragStartX = 0, dragStartY = 0, dragOffsetStartX = 0, dragOffsetStartY = 0, hasDragged = false;
+
+const gridEl = document.getElementById('grid');
+const worldMesh = document.getElementById('world-mesh');
+const containerEl = document.getElementById('map-container');
+const logEl = document.getElementById('bottom-log');
+const biomeTitleEl = document.getElementById('biome-title');
+const travelHintEl = document.getElementById('fast-travel-hint');
+
+function buildWorld() {
+  gridEl.style.gridTemplateColumns = `repeat(${COLS}, ${CELL_SIZE}px)`;
+
+  for (let r = 0; r < ROWS; r++) {
+    gridMap[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+
+      // Присваиваем биомы математически по квадрантам
+      let biome = 'biome-limgrave';
+      let bName = 'Замогилье';
+      if (r < 6 && c >= 6) { biome = 'biome-liurnia'; bName = 'Озерная Лиурния'; }
+      else if (r >= 6 && c < 6) { biome = 'biome-caelid'; bName = 'Звездные Пустоши'; }
+      else if (r >= 6 && c >= 6) { biome = 'biome-altus'; bName = 'Плато Альтус'; }
+      
+      cell.classList.add(biome);
+      cell.dataset.biomeName = bName;
+
+      // Проверяем, есть ли в этой точке объект из базы данных
+      const poi = WORLD_OBJECTS.find(o => o.r === r && o.c === c);
+      if (poi) {
+        const iconEl = document.createElement('div');
+        iconEl.className = 'poi-icon';
+        iconEl.textContent = poi.icon;
+        cell.appendChild(iconEl);
+        if (poi.type === 'grace' && poi.active) {
+          cell.classList.add('grace-active');
+        }
+      }
+
+      gridEl.appendChild(cell);
+      gridMap[r][c] = { el: cell, explored: false, poi: poi || null };
+    }
+  }
+
+  updatePlayerVision();
+  centerMapOnPlayer();
+}
+
+function updatePlayerVision() {
+  // Сбрасываем старые маркеры текущей видимости и доступности шагов
+  document.querySelectorAll('.cell').forEach(el => {
+    el.classList.remove('visible');
+    el.classList.remove('walkable');
+  });
+
+  // Обновляем Туман войны: Радиус видимости вокруг игрока = 1 клетка
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const nr = playerPos.r + dr;
+      const nc = playerPos.c + dc;
+      
+      if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+        const tile = gridMap[nr][nc];
+        tile.explored = true;
+        tile.el.classList.add('explored');
+        tile.el.classList.add('visible'); // Сейчас находится в поле зрения
+
+        // Клетки по прямой линии (вверх, вниз, влево, вправо) становятся доступными для шага
+        if (Math.abs(dr) + Math.abs(dc) === 1) {
+          tile.el.classList.add('walkable');
+        }
+      }
+    }
+  }
+
+  // Обновляем позицию токена игрока в пикселях
+  const pToken = document.getElementById('player');
+  pToken.style.left = `${playerPos.c * (CELL_SIZE + GAP) + 25}px`;
+  pToken.style.top = `${playerPos.r * (CELL_SIZE + GAP) + 25}px`;
+
+  // Меняем название региона в HUD
+  biomeTitleEl.textContent = gridMap[playerPos.r][playerPos.c].el.dataset.biomeName;
+}
+
+function handleCellClick(e) {
+  if (hasDragged) return;
+  const cell = e.target.closest('.cell');
+  if (!cell) return;
+
+  const r = parseInt(cell.dataset.row);
+  const c = parseInt(cell.dataset.col);
+  const tile = gridMap[r][c];
+
+  // ЛОГИКА ТЕЛЕПОРТАЦИИ МЕЖДУ КОСТРАМИ
+  if (isTeleportMode) {
+    if (tile.poi && tile.poi.type === 'grace' && tile.poi.active) {
+      playerPos = { r, c };
+      isTeleportMode = false;
+      travelHintEl.style.display = 'none';
+      updatePlayerVision();
+      logEl.innerHTML = `✨ Телепортация успешна! Вы переместились к костру: <b>"${tile.poi.name}"</b>.`;
+    } else {
+      isTeleportMode = false;
+      travelHintEl.style.display = 'none';
+      logEl.textContent = "Телепортация отменена. Вы можете перемещаться только между активированными кострами.";
+    }
+    return;
+  }
+
+  // Клик по текущей клетке игрока (Взаимодействие / Активация костра)
+  if (r === playerPos.r && c === playerPos.c) {
+    if (tile.poi) {
+      interactWithPOI(tile.poi, tile);
+    } else {
+      logEl.textContent = "Здесь ничего нет, кроме бескрайних просторов Земли Междуземья.";
+    }
+    return;
+  }
+
+  // Клик по соседней доступной ячейке (Шаг)
+  if (cell.classList.contains('walkable')) {
+    playerPos = { r, c };
+    updatePlayerVision();
+    
+    if (tile.poi) {
+      logEl.innerHTML = `Вы наступили на неизвестный маркер: <b>${tile.poi.name}</b>. Нажмите на свою клетку 🛡️, чтобы взаимодействовать.`;
+    } else {
+      logEl.textContent = "Вы осторожно продвигаетесь сквозь туман войны...";
+    }
+  }
+}
+
+function interactWithPOI(poi, tile) {
+  if (poi.type === 'grace') {
+    if (!poi.active) {
+      poi.active = true;
+      tile.el.classList.add('grace-active');
+      logEl.innerHTML = `✨ <b>Утраченная благодать обретена!</b> Костер "${poi.name}" активирован. Теперь вы можете телепортироваться сюда, находясь на других кострах.`;
+    } else {
+      // Костер уже активен — открываем меню быстрого перемещения
+      isTeleportMode = true;
+      travelHintEl.style.display = 'block';
+      logEl.textContent = "✨ Вы сели у костра. Режим быстрого перемещения включен! Нажмите на любой другой светящийся костер на карте для телепортации.";
+    }
+  } 
+  else if (poi.type === 'chest') {
+    logEl.innerHTML = `📦 Вы открыли старинный сундук Междуземья и нашли ценность! <br><b style='color:#e9c46a'>Получено: ${poi.reward}</b>`;
+  } 
+  else if (poi.type === 'boss') {
+    logEl.innerHTML = `👹 <b>Внимание! Преграда душ!</b> Перед вами встал великий полубог ${poi.name}. <br><i style='color:#ff5555'>(Здесь начнется пошаговый карточный бой!)</i>`;
+  }
+  else if (poi.type === 'dungeon') {
+    logEl.textContent = `🚪 Перед вами вход в мрачный данж. Нужен специальный Мечевидный ключ, чтобы сорвать печать.`;
+  }
+}
+
+function centerMapOnPlayer() {
+  offsetX = (containerEl.clientWidth / 2) - (playerPos.c * (CELL_SIZE + GAP)) - 40;
+  offsetY = (containerEl.clientHeight / 2) - (playerPos.r * (CELL_SIZE + GAP)) - 40;
+  worldMesh.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+}
+
+// Drag & Drop управление картой (под мышку и тач-скрины PWA)
+function onStart(e) {
+  isDragging = true; hasDragged = false;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  dragStartX = clientX; dragStartY = clientY;
+  dragOffsetStartX = offsetX; dragOffsetStartY = offsetY;
+  containerEl.classList.add('grabbing');
+}
+function onMove(e) {
+  if (!isDragging) return;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  const dx = clientX - dragStartX; const dy = clientY - dragStartY;
+  if (Math.abs(dx) > 5 || Math.abs(dy) > 5) hasDragged = true;
+  offsetX = dragOffsetStartX + dx; offsetY = dragOffsetStartY + dy;
+  worldMesh.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+}
+function onEnd() { isDragging = false; containerEl.classList.remove('grabbing'); }
+
+containerEl.addEventListener('mousedown', onStart);
+window.addEventListener('mousemove', onMove);
+window.addEventListener('mouseup', onEnd);
+containerEl.addEventListener('touchstart', onStart);
+window.addEventListener('touchmove', onMove);
+window.addEventListener('touchend', onEnd);
+
+gridEl.addEventListener('click', handleCellClick);
+
+buildWorld();
+</script>
+</body>
+</html>
