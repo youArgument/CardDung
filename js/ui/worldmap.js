@@ -166,6 +166,7 @@ export class WorldMapUI {
       this._dragStartX = cx;
       this._dragStartY = cy;
       this.container.classList.add('grabbing');
+      this.worldMesh.classList.add('dragging');
     };
 
     const onMove = (e) => {
@@ -188,6 +189,7 @@ export class WorldMapUI {
     const onEnd = () => {
       this._isDragging = false;
       this.container.classList.remove('grabbing');
+      this.worldMesh.classList.remove('dragging');
     };
 
     // Pan handlers.
