@@ -286,22 +286,24 @@ html, body {
 /* Enemy hand display */
 .enemy-hand-bar {
   position: absolute;
-  bottom: 2px;
+  bottom: 0;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   gap: 1px;
+  z-index: 20;
 }
 .enemy-hand-card {
-  font-size: 9px;
-  background: rgba(0,0,0,0.7);
-  border: 1px solid #c9a84c;
-  width: 14px;
-  height: 14px;
+  font-size: calc(var(--card-size) * 0.13);
+  background: rgba(0,0,0,0.85);
+  border: 1.5px solid #c9a84c;
+  width: calc(var(--card-size) * 0.2);
+  height: calc(var(--card-size) * 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: default;
+  border-radius: 2px;
 }
 
 /* Frozen indicator */
@@ -483,12 +485,13 @@ html, body {
 
 .damage-number {
   position: fixed;
-  font-size: 18px; font-weight: 900;
+  font-size: 22px; font-weight: 900;
   color: var(--accent-red);
   pointer-events: none;
-  animation: damageFloat 0.8s forwards;
-  z-index: 50;
+  animation: damageFloat 1s forwards;
+  z-index: 100;
   font-family: 'Courier New', monospace;
+  text-shadow: 0 0 6px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.7);
 }
 .damage-number.heal { color: var(--accent-green); }
 .damage-number.block { color: var(--accent-blue); }

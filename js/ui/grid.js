@@ -163,13 +163,17 @@ export class GridUI {
 
   static showDamageNumber(cell, amount, type = 'damage') {
     if (!cell.element || amount <= 0) return;
-    const num = document.createElement('div');
-    num.className = `damage-number ${type}`;
-    num.textContent = type === 'heal' ? `+${amount}` : `-${amount}`;
-    const rect = cell.element.getBoundingClientRect();
-    num.style.left = `${rect.left + rect.width / 2 - 10}px`;
-    num.style.top = `${rect.top + rect.height / 3}px`;
-    document.body.appendChild(num);
-    setTimeout(() => num.remove(), 800);
+    requestAnimationFrame(() => {
+      const num = document.createElement('div');
+      num.className = `damage-number ${type}`;
+      num.textContent = type === 'heal' ? `+${amount}` : `-${amount}`;
+      if (cell.element.isConnected) {
+        const rect = cell.element.getBoundingClientRect();
+        num.style.left = `${rect.left + rect.width / 2 - 10}px`;
+        num.style.top = `${rect.top + rect.height / 3}px`;
+      }
+      document.body.appendChild(num);
+      setTimeout(() => num.remove(), 900);
+    });
   }
 }
