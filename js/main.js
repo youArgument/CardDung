@@ -684,6 +684,13 @@ const Game = {
         card._discardPile = [];
         card.maxHp = card.hp;
         card._deckInitialized = true;
+        card._firstTurn = true; // first tick: draw only, don't play
+      }
+
+      // First turn after reveal: enemy draws but doesn't play yet.
+      if (card._firstTurn) {
+        card._firstTurn = false;
+        continue;
       }
 
       // Draw up to max hand (2).
