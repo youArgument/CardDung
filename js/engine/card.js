@@ -18,5 +18,11 @@ export class Card {
     this.poison = t.poison || 0;
     this.merged = isMerged;
     this.uuid = Math.random().toString(36).slice(2, 11);
+
+    // Copy new schema fields from template.
+    if (t.targetMode) this.targetMode = t.targetMode;
+    if (t.effects && t.effects.length) this.effects = JSON.parse(JSON.stringify(t.effects));
+    if (t.rarity) this.rarity = t.rarity;
+    if (t.returnToHand) this.returnToHand = true;
   }
 }
