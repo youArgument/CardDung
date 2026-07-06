@@ -18,7 +18,7 @@ export class GameState {
     this.selectedClassId = null;
   }
 
-  startRun(classId) {
+  startRun(classId, meta) {
     const classData = CLASSES[classId] || CLASSES.warrior;
     this.selectedClassId = classId;
     const upg = this.upgrades;
@@ -32,6 +32,11 @@ export class GameState {
     const totalAgi = classData.stats.agility + bonusAgi;
     const totalInt = classData.stats.intelligence + bonusInt;
     const totalWill = classData.stats.will + bonusWill;
+
+    // Dungeon type from world map meta (or default)
+    const dungeonType = (meta && meta.type) || 'dungeon';
+    const isBossRun = dungeonType === 'boss';
+    const totalRooms = isBossRun ? 1 : 1 + Math.floor(Math.random() * 5);
 
     this.run = {
       player: {
@@ -55,7 +60,7 @@ export class GameState {
       deck: new Deck(),
       floor: 1,
       currentRoom: 0,
-      totalRooms: 1 + Math.floor(Math.random() * 5),
+      totalRooms: totalRooms,
       roomsCleared: 0,
       revealedEnemiesCount: 0,
       dungeon: null,
@@ -65,7 +70,8 @@ export class GameState {
       mergeBonus: upg.mergeBonus || 0,
       artifact: classData.artifact ? { ...classData.artifact } : null,
       firstCardFree: false,
-      restSkipCount: 0 // tracks consecutive rooms without resting
+      restSkipCount: 0, // tracks consecutive rooms without resting
+      dungeonType: dungeonType // 'dungeon' or 'boss' for UI and boss room logic
     };
 
     // Use the player's active deck (managed in hub). Falls back to class starting deck on first game.

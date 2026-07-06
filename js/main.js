@@ -305,11 +305,11 @@ const Game = {
   },
 
   // ===== DUNGEON =====
-  enterDungeon() {
+  enterDungeon(meta) {
     const classId = this.state.selectedClassId;
     if (!classId || !CLASSES[classId]) return;
     this.audio.playSelect();
-    this.state.startRun(classId);
+    this.state.startRun(classId, meta);
     this.showScreen('dungeon');
     this.renderDungeon();
     this.updateRoomProgress();
@@ -388,12 +388,12 @@ const Game = {
   _onWorldEnter(res) {
     if (res.type === 'dungeon') {
       // Enter dungeon from world map.
-      this.leaveWorldMap(); // Save state first.
-      setTimeout(() => this.enterDungeon(), 100);
+      this.leaveWorldMap();
+      setTimeout(() => this.enterDungeon({ type: 'dungeon', ...res.meta }), 100);
     } else if (res.type === 'boss_entrance') {
       // Boss fight — enter dungeon with boss settings.
       this.leaveWorldMap();
-      setTimeout(() => this.enterDungeon(res.meta), 100);
+      setTimeout(() => this.enterDungeon({ type: 'boss', ...res.meta }), 100);
     }
   },
 
