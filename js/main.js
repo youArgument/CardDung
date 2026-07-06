@@ -62,6 +62,11 @@ const Game = {
 
     // Check for updates: fetch VERSION from network and compare with cached
     this.checkForUpdate();
+
+    // Re-check when user returns to the tab (PWA was in background)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) this.checkForUpdate();
+    });
   },
 
   bindEvents() {
@@ -1387,12 +1392,12 @@ const Game = {
   },
 
   // ===== PWA UPDATE =====
-  checkForUpdate() {
+   checkForUpdate() {
     const storedVersion = localStorage.getItem('carddung-version');
 
-    // Fetch VERSION from network to get server version
-    fetch('./VERSION?nocache=' + Date.now(), { cache: 'no-store' })
-      .then(r => r.text())
+    // Fetch VERSION from network to get server version (bypass all caches)
+    fetch('./VERSION?nocache=' + Date.now(), { cache: 'no-store', mode: 'cors' })
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
       .then(serverVersion => {
         const sv = serverVersion.trim();
 
@@ -1402,12 +1407,12 @@ const Game = {
           if (banner) banner.classList.remove('hidden');
         }
 
-        // Store current version for next comparison
+        // Store current version for next comparison (only on first install)
         if (!storedVersion) {
           localStorage.setItem('carddung-version', sv);
         }
       })
-      .catch(() => {});
+      .catch(err => console.warn('[UPDATE] check failed:', err.message));
   },
 
   bindUpdateButton() {
