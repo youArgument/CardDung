@@ -4,7 +4,7 @@ const translations = {
   en: {
     // Menu
     'menu.title': 'Dungeon\nElden\nSouls',
-    'menu.subtitle': 'Card-Based Dungeon Crawler',
+    'menu.subtitle': 'Card-Based Dungeon Roguelike',
     'menu.best_floor': 'Best Floor',
     'menu.runs': 'Runs',
     'menu.escapes': 'Escapes',
@@ -189,7 +189,7 @@ const translations = {
   ru: {
     // Menu
     'menu.title': 'Dungeon\nElden\nSouls',
-    'menu.subtitle': 'Карточный Подземельный Краулер',
+    'menu.subtitle': 'Карточный подземельный рогалик',
     'menu.best_floor': 'Лучший Этаж',
     'menu.runs': 'Забеги',
     'menu.escapes': 'Побег',
@@ -243,7 +243,7 @@ const translations = {
     'exit.escape': 'Сбежать',
 
     // Reward screen
-    'reward.cleared': 'ПРОШЕНО!',
+    'reward.cleared': 'ПРОЙДЕНО!',
     'reward.gold': '+{0} Золота',
     'reward.continue': 'ДАЛЕЕ',
 
