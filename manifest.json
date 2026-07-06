@@ -1,6 +1,6 @@
 {
-  "name": "Patient Rogue",
-  "short_name": "PatientRogue",
+  "name": "Dungeon•Elden•Souls",
+  "short_name": "DESouls",
   "description": "A card-based roguelike deckbuilding game",
   "start_url": "./index.html",
   "display": "fullscreen",
