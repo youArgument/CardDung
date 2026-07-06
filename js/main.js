@@ -145,84 +145,27 @@ const Game = {
     });
 
     // Prevent the click from bubbling into drag logic and causing unintended plays.
-    // (Touch/click synthesis can trigger unexpected mousedown/mouseup sequences.)
-    handEl.addEventListener('mousedown', (e) => {
-      e.stopPropagation();
-    });
+     // (Touch/click synthesis can trigger unexpected mousedown/mouseup sequences.)
+     handEl.addEventListener('mousedown', (e) => {
+       e.stopPropagation();
+     });
 
-    this.setupDragDrop(handEl, gridEl);
+     this.setupDragDrop(handEl, gridEl);
 
     // Card popup close on backdrop
-    document.getElementById('card-popup').addEventListener('click', (e) => {
-      if (e.target.id === 'card-popup') this.hubUI.hidePopup();
-    });
+     document.getElementById('card-popup').addEventListener('click', (e) => {
+       if (e.target.id === 'card-popup') this.hubUI.hidePopup();
+     });
 
     // Enemy hand popup close
-     document.getElementById('enemy-hand-popup').addEventListener('click', (e) => {
-       if (e.target.id === 'enemy-hand-popup' || e.target.id === 'btn-enemy-hand-close') this.hideEnemyHandPopup();
-     });
+      document.getElementById('enemy-hand-popup').addEventListener('click', (e) => {
+        if (e.target.id === 'enemy-hand-popup' || e.target.id === 'btn-enemy-hand-close') this.hideEnemyHandPopup();
+      });
 
     // Hand card stat popup close
-     document.getElementById('hand-card-popup').addEventListener('click', (e) => {
-       if (e.target.id === 'hand-card-popup' || e.target.id === 'btn-hand-card-close') this.hideHandCardPopup();
-     });
-
-    // Long press on hand cards for stat info.
-     let _handLongTimer = null;
-     let _handLongFired = false;
-
-     handEl.addEventListener('touchstart', (e) => {
-       const cardEl = e.target.closest('.hand-card');
-       if (!cardEl) return;
-       _handLongFired = false;
-       const uuid = cardEl.dataset.uuid;
-       const run = this.state.run;
-       if (!run) return;
-       const card = run.deck.hand.find(c => c.uuid === uuid);
-       if (!card) return;
-        _handLongTimer = setTimeout(() => {
-          _handLongFired = true;
-          const pStats = run.player.stats || {};
-          this.showHandCardPopup(card, pStats);
-        }, 1000);
-      }, { passive: true });
-
-      // Cancel long-press on movement (user is dragging).
-      handEl.addEventListener('touchmove', () => {
-        if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
+      document.getElementById('hand-card-popup').addEventListener('click', (e) => {
+        if (e.target.id === 'hand-card-popup' || e.target.id === 'btn-hand-card-close') this.hideHandCardPopup();
       });
-
-      handEl.addEventListener('touchend', (e) => {
-        if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
-      });
-
-      // Desktop: mouse long press for hand card stat info.
-      handEl.addEventListener('mousedown', (e) => {
-        const cardEl = e.target.closest('.hand-card');
-        if (!cardEl) return;
-        _handLongFired = false;
-        const uuid = cardEl.dataset.uuid;
-        const run = this.state.run;
-        if (!run) return;
-        const card = run.deck.hand.find(c => c.uuid === uuid);
-        if (!card) return;
-        _handLongTimer = setTimeout(() => {
-          _handLongFired = true;
-          const pStats = run.player.stats || {};
-          this.showHandCardPopup(card, pStats);
-        }, 1000);
-      });
-
-     // Cancel long-press on mouse move.
-     handEl.addEventListener('mousemove', (e) => {
-       if (_handLongTimer && e.target.closest('.hand-card')) {
-         clearTimeout(_handLongTimer); _handLongTimer = null;
-       }
-     });
-
-     handEl.addEventListener('mouseup', (e) => {
-       if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
-     });
 
     // Exit popup
     document.getElementById('exit-popup').addEventListener('click', (e) => {
@@ -253,18 +196,30 @@ const Game = {
     let dragClone = null;
     let didDrag = false;
     let dragTypeAllowed = false;
+    let _longPressTimer = null;
 
     const handleStart = (e) => {
       const cardEl = e.target.closest('.hand-card');
       if (!cardEl) return;
 
-      // Cancel long-press popup timer — user is starting a drag.
-      if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
-      // Hide popup if it's already open from a previous long press.
+      // Cancel any existing long-press timer and hide popup.
+      if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
       this.hideHandCardPopup();
 
       dragCard = cardEl;
       didDrag = false;
+
+      // Start long-press timer: if user holds for 1000ms without moving, show stat popup.
+      const uuid = cardEl.dataset.uuid;
+      const run = this.state.run;
+      _longPressTimer = setTimeout(() => {
+        if (!run || didDrag) return; // Don't fire if already dragging.
+        const card = run.deck.hand.find(c => c.uuid === uuid);
+        if (card) {
+          const pStats = run.player.stats || {};
+          this.showHandCardPopup(card, pStats);
+        }
+      }, 1000);
 
       // Cards that need manual targeting can be dragged.
       const uuid = dragCard.dataset.uuid;
@@ -294,6 +249,8 @@ const Game = {
     };
 
     const handleMove = (e) => {
+      // Cancel long-press timer on movement.
+      if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
       if (!dragClone) return;
       e.preventDefault();
       didDrag = true;
@@ -308,6 +265,8 @@ const Game = {
     };
 
     const handleEnd = (e) => {
+      // Cancel long-press timer on release.
+      if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
       if (!dragCard || !dragClone) { dragCard = null; return; }
 
       const wasDrag = didDrag;
