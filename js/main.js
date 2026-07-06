@@ -361,8 +361,7 @@ const Game = {
   leaveWorldMap() {
     // Save world state.
     if (this.worldMap) {
-      const saved = SaveSystem.load();
-      saved = saved || {};
+      let saved = SaveSystem.load() || {};
       saved.worldState = this.worldMap.serialize();
       SaveSystem.save(saved);
     }
