@@ -390,6 +390,21 @@ html, body {
   width: 20px; height: 20px;
   display: flex; align-items: center; justify-content: center;
 }
+.hand-card .card-power {
+  position: absolute; top: -4px; left: -4px;
+  background: var(--accent-red);
+  color: white; font-size: 11px; font-weight: 800;
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+}
+.hand-card .card-power-penalty {
+  position: absolute; top: -4px; left: -4px;
+  background: #6b3a3a;
+  color: #ff9999; font-size: 11px; font-weight: 800;
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+}
+.hand-card.stat-penalty { opacity: 0.65; }
 .hand-card .card-sprite { font-size: 24px; }
 .hand-card .card-name {
   font-size: 9px; font-weight: 700;
@@ -405,7 +420,6 @@ html, body {
   margin-top: 2px;
 }
 .hand-card.unplayable { opacity: 0.4; }
-.card-power-pct { font-size: 9px; color: var(--accent-red); font-weight: 700; margin-top: -2px; }
 
 /* ===== REWARD SCREEN ===== */
 .reward-content {

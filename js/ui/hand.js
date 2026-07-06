@@ -32,14 +32,12 @@ export class HandUI {
 
       if (run.player.stamina < card.cost) el.classList.add('unplayable');
 
-      // Check stat penalty
+      // Calculate actual power with stat penalty
+      let displayPower = null;
       const mult = HandUI.getCardStatMultiplier(card, pStats);
-      let powerBadge = '';
-      if (mult < 1.0 && mult > 0) {
-        const pct = Math.round(mult * 100);
-        el.classList.add('stat-penalty');
-        el.style.opacity = String(0.5 + mult * 0.5); // 30% → opacity 0.65, 100% → opacity 1.0
-        powerBadge = `<div class="card-power-badge">${pct}%</div>`;
+      if (card.type === 'attack' || card.type === 'attack-all') {
+        displayPower = Math.max(1, Math.round((card.power || 0) * mult));
+        if (mult < 1.0) el.classList.add('stat-penalty');
       }
 
       // Translate name/desc based on card type
@@ -53,11 +51,17 @@ export class HandUI {
         desc = t(`item.${card.template}.desc`, card.desc);
       }
 
+      let powerHtml = '';
+      if (displayPower !== null) {
+        const powerClass = mult < 1.0 ? 'card-power-penalty' : 'card-power';
+        powerHtml = `<div class="${powerClass}">${displayPower}</div>`;
+      }
+
       el.innerHTML = `
+        ${powerHtml}
         <div class="card-cost">${card.cost}</div>
         <div class="card-sprite">${card.sprite}</div>
         <div class="card-name">${name}</div>
-        ${powerBadge ? `<div class="card-power-pct">${powerBadge}</div>` : ''}
         <div class="card-desc">${desc}</div>
       `;
 
