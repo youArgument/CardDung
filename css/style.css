@@ -333,6 +333,11 @@ html, body {
   opacity: 0.3;
   pointer-events: none;
 }
+.grave-sprite {
+  font-size: 32px;
+  text-align: center;
+  line-height: var(--card-size);
+}
 .dungeon-card.hint-gold {
   border-color: var(--accent-gold) !important;
   box-shadow: 0 0 16px rgba(201,168,76,0.7), inset 0 0 12px rgba(201,168,76,0.3);

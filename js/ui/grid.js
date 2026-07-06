@@ -51,7 +51,15 @@ export class GridUI {
 
     if (card.type === DUNGEON_TEMPLATES.enemy) {
       el.classList.add('enemy-card');
-      if (card.defeated) el.classList.add('defeated');
+      if (card.defeated) {
+        el.classList.add('defeated');
+        // Show grave instead of enemy card.
+        const grave = document.createElement('div');
+        grave.className = 'grave-sprite';
+        grave.textContent = '🪦';
+        el.appendChild(grave);
+        return;
+      }
 
       const hpBadge = document.createElement('div');
       hpBadge.className = 'card-hp';
@@ -112,7 +120,11 @@ export class GridUI {
       }
     } else if (card.type === DUNGEON_TEMPLATES.item) {
       el.classList.add('item-card');
-      if (card.collected) el.classList.add('defeated');
+      if (card.collected) {
+        // Collected item: show empty slot.
+        el.classList.add('empty-slot');
+        return;
+      }
 
       // Render from real PLAYER_CARDS.
       const template = PLAYER_CARDS[card.cardId];
