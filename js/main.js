@@ -829,8 +829,8 @@ const Game = {
   handleEnemyCardResults(results, cell, run) {
     for (const r of results) {
       if (r.type === 'damage_player') {
-        const result = this.state.takeDamage(r.amount);
-        GridUI.showDamage(cell, result.damage, 'damage');
+        // Damage already applied in combat.js:processEffect — only show visual feedback.
+        GridUI.showDamage(cell, r.amount, 'damage');
         GridUI.animateHit(cell);
       } else if (r.type === 'heal_enemy' && r.cell) {
         GridUI.showDamage(r.cell, r.amount, 'heal');
