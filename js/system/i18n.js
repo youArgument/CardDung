@@ -3,7 +3,7 @@ import { PLAYER_CARDS } from '../data/cards.js';
 const translations = {
   en: {
     // Menu
-    'menu.title': 'Dungeon•Elden•Souls',
+    'menu.title': 'Dungeon\nElden\nSouls',
     'menu.subtitle': 'Card-Based Dungeon Crawler',
     'menu.best_floor': 'Best Floor',
     'menu.runs': 'Runs',
@@ -186,7 +186,7 @@ const translations = {
   },
   ru: {
     // Menu
-    'menu.title': 'Dungeon•Elden•Souls',
+    'menu.title': 'Dungeon\nElden\nSouls',
     'menu.subtitle': 'Карточный Подземельный Краулер',
     'menu.best_floor': 'Лучший Этаж',
     'menu.runs': 'Забеги',
