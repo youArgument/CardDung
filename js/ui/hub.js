@@ -12,17 +12,41 @@ export class HubUI {
 
   init() {
     // Hub card clicks
-    document.querySelectorAll('.hub-card').forEach(card => {
-      card.addEventListener('click', () => {
-        this.game.audio.playSelect();
-        const panel = card.dataset.panel;
-        if (panel === 'dungeon') {
-          this.game.enterDungeon();
-        } else {
-          this.openPanel(panel);
-        }
-      });
-    });
+     document.querySelectorAll('.hub-card').forEach(card => {
+       const handleClick = () => {
+         this.game.audio.playSelect();
+         const panel = card.dataset.panel;
+         if (panel === 'dungeon') {
+           this.game.enterDungeon();
+         } else {
+           this.openPanel(panel);
+         }
+       };
+
+       // Long press on "Спуск" button → World Map.
+       if (card.id === 'hub-dungeon') {
+         let lpTimer = null;
+         const startLp = (e) => {
+           lpTimer = setTimeout(() => {
+             this.game.audio.playSelect();
+             this.game.enterWorldMap();
+           }, 800);
+         };
+         const cancelLp = () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } };
+
+         card.addEventListener('touchstart', startLp, { passive: true });
+         card.addEventListener('touchend', cancelLp);
+         card.addEventListener('touchmove', cancelLp);
+         card.addEventListener('mousedown', startLp);
+         card.addEventListener('mouseup', cancelLp);
+         card.addEventListener('mouseleave', cancelLp);
+
+         // On click, cancel long-press timer so it doesn't fire after.
+         card.addEventListener('click', () => cancelLp(), true);
+       }
+
+       card.addEventListener('click', handleClick);
+     });
 
     // Hub back button
     document.getElementById('btn-hub-menu').addEventListener('click', () => {
