@@ -84,6 +84,8 @@ const Game = {
     const gridEl = document.getElementById('dungeon-grid');
     const handleGridTap = (cardEl) => {
       if (!cardEl) return;
+      // Block grid interaction while any popup is open.
+      if (document.querySelector('.card-popup:not(.hidden)')) return;
       const row = parseInt(cardEl.dataset.row);
       const col = parseInt(cardEl.dataset.col);
       this.onDungeonCardClick(row, col);
