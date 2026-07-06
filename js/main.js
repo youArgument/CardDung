@@ -1142,6 +1142,14 @@ const Game = {
     return deck.sort(() => Math.random() - 0.5);
   },
 
+  // Get or generate a single Beggar deck for the preview → confirm flow.
+  getBeggarDeck() {
+    if (!this._beggarPreviewDeck) {
+      this._beggarPreviewDeck = this.generateBeggarDeck();
+    }
+    return this._beggarPreviewDeck;
+  },
+
   showClassDetail(classId) {
     const cls = CLASSES[classId];
     if (!cls) return;
@@ -1150,8 +1158,8 @@ const Game = {
     const desc = t(cls.descKey);
     const s = cls.stats;
 
-    // For Beggar, generate a random preview deck.
-    const displayDeck = classId === 'beggar' ? this.generateBeggarDeck() : cls.startingDeck;
+    // For Beggar, use the cached preview deck (same cards shown → same saved).
+    const displayDeck = classId === 'beggar' ? this.getBeggarDeck() : cls.startingDeck;
 
     const statsHtml = `<div class="class-detail-stats-row">
       <span class="detail-stat">STR ${s.strength}</span>
@@ -1222,14 +1230,18 @@ const Game = {
     `;
 
     document.getElementById('btn-class-confirm').addEventListener('click', () => this.confirmClass(classId));
-    document.getElementById('btn-class-back').addEventListener('click', () => this.renderFirstTimeView(container));
+    document.getElementById('btn-class-back').addEventListener('click', () => {
+      // Reset Beggar preview so re-opening shows a new random deck.
+      if (classId === 'beggar') this._beggarPreviewDeck = null;
+      this.renderFirstTimeView(container);
+    });
   },
 
   confirmClass(classId) {
     this.state.selectedClassId = classId;
-    // For Beggar, generate random deck (min 1 attack). Otherwise use class starting deck.
+    // For Beggar, use the same deck shown in preview. Otherwise use class starting deck.
     if (classId === 'beggar') {
-      this.state.activeDeck = this.generateBeggarDeck();
+      this.state.activeDeck = this.getBeggarDeck();
     } else {
       this.state.activeDeck = [...CLASSES[classId].startingDeck];
     }
