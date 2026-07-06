@@ -3,8 +3,8 @@ import { PLAYER_CARDS } from '../data/cards.js';
 const translations = {
   en: {
     // Menu
-    'menu.title': 'PATIENT ROGUE',
-    'menu.subtitle': 'Extraction Card Dungeon',
+    'menu.title': 'Dungeon•Elden•Souls',
+    'menu.subtitle': 'Card-Based Dungeon Crawler',
     'menu.best_floor': 'Best Floor',
     'menu.runs': 'Runs',
     'menu.escapes': 'Escapes',
@@ -186,8 +186,8 @@ const translations = {
   },
   ru: {
     // Menu
-    'menu.title': 'PATIENT ROGUE',
-    'menu.subtitle': 'Подземелье Карточной Вылазки',
+    'menu.title': 'Dungeon•Elden•Souls',
+    'menu.subtitle': 'Карточный Подземельный Краулер',
     'menu.best_floor': 'Лучший Этаж',
     'menu.runs': 'Забеги',
     'menu.escapes': 'Побег',
