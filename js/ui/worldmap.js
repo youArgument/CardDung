@@ -35,11 +35,13 @@ export class WorldMapUI {
     this.container.appendChild(this.poiLayer);
 
     // Input handling.
-    this._setupInput();
+     this._setupInput();
 
-    // Initial camera position.
-    this.updateCamera();
-  }
+     // Initial camera position — defer until container is visible and sized.
+     requestAnimationFrame(() => {
+       requestAnimationFrame(() => this.updateCamera());
+     });
+   }
 
   _renderTiles() {
     const size = this.map.size;
@@ -126,12 +128,12 @@ export class WorldMapUI {
 
   updateCamera() {
     const pos = this.map.playerPos;
-    const screenW = Math.min(this.container.clientWidth, 450);
-    const screenH = Math.min(this.container.clientHeight, 600);
+    const screenW = this.container.clientWidth || 450;
+    const screenH = this.container.clientHeight || 700;
 
-    // Center the grid on the player.
-    const offsetX = -(pos.c * TILE_SIZE - screenW / 2 + TILE_SIZE / 2);
-    const offsetY = -(pos.r * TILE_SIZE - screenH / 2 + TILE_SIZE / 2);
+    // Center the grid on the player: shift so player tile is at center of screen.
+    const offsetX = -(pos.c * TILE_SIZE) + (screenW / 2) - (TILE_SIZE / 2);
+    const offsetY = -(pos.r * TILE_SIZE) + (screenH / 2) - (TILE_SIZE / 2);
 
     this.gridEl.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
 
