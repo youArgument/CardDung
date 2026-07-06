@@ -764,10 +764,10 @@ const Game = {
         card._firstTurn = true; // first tick: draw only, don't play
       }
 
-      // First turn after reveal: enemy draws but doesn't play yet.
-      if (card._firstTurn) {
+       // First turn after reveal: enemy draws cards but doesn't play yet.
+      const isFirstTurn = card._firstTurn;
+      if (isFirstTurn) {
         card._firstTurn = false;
-        continue;
       }
 
       // Draw up to max hand (2).
@@ -791,6 +791,13 @@ const Game = {
         card._frozenTicks--;
         GridUI.showDamage(cell, 0, 'block');
         GridUI.updateCell(cell);
+        continue;
+      }
+
+       // First turn: skip playing, only drew cards above.
+      if (isFirstTurn) {
+        GridUI.render(run.dungeon, this.state, document.getElementById('dungeon-grid'));
+        HUD.update(this.state);
         continue;
       }
 
