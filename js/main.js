@@ -180,38 +180,38 @@ const Game = {
        if (!run) return;
        const card = run.deck.hand.find(c => c.uuid === uuid);
        if (!card) return;
-       _handLongTimer = setTimeout(() => {
-         _handLongFired = true;
-         const pStats = run.player.stats || {};
-         this.showHandCardPopup(card, pStats);
-       }, 500);
-     }, { passive: true });
+        _handLongTimer = setTimeout(() => {
+          _handLongFired = true;
+          const pStats = run.player.stats || {};
+          this.showHandCardPopup(card, pStats);
+        }, 1000);
+      }, { passive: true });
 
-     // Cancel long-press on movement (user is dragging).
-     handEl.addEventListener('touchmove', () => {
-       if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
-     });
+      // Cancel long-press on movement (user is dragging).
+      handEl.addEventListener('touchmove', () => {
+        if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
+      });
 
-     handEl.addEventListener('touchend', (e) => {
-       if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
-     });
+      handEl.addEventListener('touchend', (e) => {
+        if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
+      });
 
-     // Desktop: mouse long press for hand card stat info.
-     handEl.addEventListener('mousedown', (e) => {
-       const cardEl = e.target.closest('.hand-card');
-       if (!cardEl) return;
-       _handLongFired = false;
-       const uuid = cardEl.dataset.uuid;
-       const run = this.state.run;
-       if (!run) return;
-       const card = run.deck.hand.find(c => c.uuid === uuid);
-       if (!card) return;
-       _handLongTimer = setTimeout(() => {
-         _handLongFired = true;
-         const pStats = run.player.stats || {};
-         this.showHandCardPopup(card, pStats);
-       }, 500);
-     });
+      // Desktop: mouse long press for hand card stat info.
+      handEl.addEventListener('mousedown', (e) => {
+        const cardEl = e.target.closest('.hand-card');
+        if (!cardEl) return;
+        _handLongFired = false;
+        const uuid = cardEl.dataset.uuid;
+        const run = this.state.run;
+        if (!run) return;
+        const card = run.deck.hand.find(c => c.uuid === uuid);
+        if (!card) return;
+        _handLongTimer = setTimeout(() => {
+          _handLongFired = true;
+          const pStats = run.player.stats || {};
+          this.showHandCardPopup(card, pStats);
+        }, 1000);
+      });
 
      // Cancel long-press on mouse move.
      handEl.addEventListener('mousemove', (e) => {
