@@ -286,18 +286,18 @@ html, body {
 /* Enemy hand display */
 .enemy-hand-bar {
   position: absolute;
-  bottom: -14px;
+  bottom: 2px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 2px;
+  gap: 1px;
 }
 .enemy-hand-card {
-  font-size: 11px;
-  background: var(--bg-panel);
-  border: 1px solid #444;
-  width: 16px;
-  height: 16px;
+  font-size: 9px;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid #c9a84c;
+  width: 14px;
+  height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;

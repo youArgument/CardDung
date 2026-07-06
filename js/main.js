@@ -324,7 +324,7 @@ const Game = {
         CombatEngine.defeatEnemy(cell, run);
       }
       GridUI.animateHit(cell);
-      GridUI.showDamage(cell, base, 'damage');
+      GridUI.showDamageNumber(cell, base, 'damage');
       GridUI.updateCell(cell);
       HUD.update(this.state);
       this.advanceWorldTick();
@@ -459,7 +459,7 @@ const Game = {
     for (const effect of result.effects) {
       if (effect.type === 'damage' && effect.cell) {
         GridUI.animateHit(effect.cell);
-        GridUI.showDamage(effect.cell, effect.amount, 'damage');
+        GridUI.showDamageNumber(effect.cell, effect.amount, 'damage');
         GridUI.updateCell(effect.cell);
       }
       if (effect.type === 'heal') HUD.update(this.state);

@@ -33,12 +33,6 @@ export class HubUI {
     document.querySelectorAll('.btn-panel-back').forEach(btn => {
       btn.addEventListener('click', () => this.closeAllPanels());
     });
-
-    // Hub leave button (from dungeon — top panel)
-    document.getElementById('btn-hub-leave').addEventListener('click', () => {
-      this.game.audio.playSelect();
-      this.game.leaveToHub();
-    });
   }
 
   updateHub() {
