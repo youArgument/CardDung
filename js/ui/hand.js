@@ -1,22 +1,7 @@
 import { t } from '../system/i18n.js';
+import { CombatEngine } from '../engine/combat.js';
 
 export class HandUI {
-  // Calculate min stat multiplier across all effects of a card
-  static getCardStatMultiplier(card, pStats) {
-    if (!pStats || !card.effects || !card.effects.length) return 1.0;
-    let minMult = 1.0;
-    for (const efx of card.effects) {
-      const req = efx.req;
-      if (!req) continue;
-      for (const [statKey, reqVal] of Object.entries(req)) {
-        const playerVal = pStats[statKey] || 0;
-        const mult = Math.max(0.3, playerVal / reqVal);
-        minMult = Math.min(minMult, mult);
-      }
-    }
-    return minMult;
-  }
-
   static render(state, container) {
     const run = state.run;
     if (!run) return;
@@ -32,13 +17,16 @@ export class HandUI {
 
       if (run.player.stamina < card.cost) el.classList.add('unplayable');
 
-      // Calculate actual damage with stat penalty (matches combat.js formula)
+      // Calculate actual damage using Combat System 2.0 formula
       let displayPower = null;
-      const mult = HandUI.getCardStatMultiplier(card, pStats);
+      let masteryMult = 1.0;
       if (card.type === 'attack' || card.type === 'attack-all') {
-        const rawDmg = (card.power || 0) + (run.player.strength || 0);
-        displayPower = mult < 1.0 ? Math.max(1, Math.round(rawDmg * mult)) : rawDmg;
-        if (mult < 1.0) el.classList.add('stat-penalty');
+        const calcVal = CombatEngine.calculateCardValue(card, pStats);
+        displayPower = calcVal;
+        // Calculate mastery for visual feedback
+        const effectiveStat = CombatEngine.getEffectiveStat(card, pStats);
+        masteryMult = CombatEngine.getMastery(effectiveStat, card.requiredStat || 0);
+        if (masteryMult < 1.0) el.classList.add('stat-penalty');
       }
 
       // Translate name/desc based on card type
@@ -54,7 +42,7 @@ export class HandUI {
 
       let powerHtml = '';
       if (displayPower !== null) {
-        const powerClass = mult < 1.0 ? 'card-power-penalty' : 'card-power';
+        const powerClass = masteryMult < 1.0 ? 'card-power-penalty' : 'card-power';
         powerHtml = `<div class="${powerClass}">${displayPower}</div>`;
       }
 

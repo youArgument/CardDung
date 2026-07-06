@@ -1,5 +1,10 @@
 import { DUNGEON_TEMPLATES } from '../data/dungeon.js';
 
+// Map stat keys to player stats object
+const STAT_MAP = {
+  STR: 'strength', AGI: 'agility', INT: 'intelligence', WIL: 'will', VIT: 'vitality'
+};
+
 export class CombatEngine {
   // Shared logic: mark enemy as defeated and apply rewards.
   static defeatEnemy(cell, run) {
@@ -15,25 +20,56 @@ export class CombatEngine {
     return { type: 'defeat', cell, gold: cell.card.gold };
   }
 
-  // Calculate stat penalty multiplier: min(1.0, playerStat / reqStat), floor at 0.3
-  static getStatMultiplier(effect, pStats) {
-    const req = effect.req;
-    if (!req || !pStats) return 1.0;
-    let multiplier = 1.0;
-    // STR-based effects (damage/physical attacks)
-    if (req.strength && pStats.strength !== undefined) {
-      multiplier = Math.min(multiplier, pStats.strength / req.strength);
+  // Calculate effective stat from StatWeights (hybrid support) or MainStat
+  static getEffectiveStat(card, pStats) {
+    if (!pStats) return 0;
+    const weights = card.statWeights || {};
+    // If hybrid weights defined: INT 80% + WIL 20%
+    if (Object.keys(weights).length > 0) {
+      let effective = 0;
+      for (const [stat, weight] of Object.entries(weights)) {
+        const key = STAT_MAP[stat.toUpperCase()] || stat.toLowerCase();
+        effective += (pStats[key] || 0) * parseFloat(weight);
+      }
+      return effective;
     }
-    if (req.agility && pStats.agility !== undefined) {
-      multiplier = Math.min(multiplier, pStats.agility / req.agility);
+    // Single main stat fallback
+    const mainStat = card.mainStat?.toUpperCase();
+    if (mainStat && STAT_MAP[mainStat]) {
+      return pStats[STAT_MAP[mainStat]] || 0;
     }
-    if (req.intelligence && pStats.intelligence !== undefined) {
-      multiplier = Math.min(multiplier, pStats.intelligence / req.intelligence);
-    }
-    if (req.will && pStats.will !== undefined) {
-      multiplier = Math.min(multiplier, pStats.will / req.will);
-    }
-    return Math.max(0.3, multiplier);
+    return 0;
+  }
+
+  // Calculate Mastery: Clamp(EffectiveStat / RequiredStat, 0.30, 1.00)
+  static getMastery(effectiveStat, requiredStat) {
+    if (!requiredStat || requiredStat <= 0) return 1.0;
+    return Math.max(0.3, Math.min(1.0, effectiveStat / requiredStat));
+  }
+
+  // Calculate Scaling Bonus: max(0, EffectiveStat - RequiredStat) × Scaling
+  static getScalingBonus(effectiveStat, requiredStat, scaling) {
+    if (!scaling || scaling <= 0) return 0;
+    const excess = Math.max(0, effectiveStat - (requiredStat || 0));
+    return excess * scaling;
+  }
+
+  // Calculate final value for a card effect: Round(BaseDamage × Mastery + Bonus)
+  static calculateCardValue(card, pStats) {
+    const baseVal = card.baseDamage || card.power || 0;
+    const requiredStat = card.requiredStat || 0;
+    const scaling = card.scaling || 0;
+
+    // Get effective stat (supports hybrid via statWeights)
+    const effectiveStat = CombatEngine.getEffectiveStat(card, pStats);
+
+    // Mastery: clamp between 0.3 and 1.0
+    const mastery = CombatEngine.getMastery(effectiveStat, requiredStat);
+
+    // Scaling bonus for exceeding requirement
+    const bonus = CombatEngine.getScalingBonus(effectiveStat, requiredStat, scaling);
+
+    return Math.max(1, Math.round(baseVal * mastery + bonus));
   }
 
   // Process a single effect against the game state.
@@ -41,19 +77,12 @@ export class CombatEngine {
     const results = [];
     const efx = effect;
     const pStats = p.stats || {};
-    const statMult = CombatEngine.getStatMultiplier(efx, pStats);
 
     switch (efx.action) {
       case 'damage': {
         if (!targetCell || targetCell.card.type !== DUNGEON_TEMPLATES.enemy || targetCell.card.defeated) break;
-        let str = p.strength + (run.buffs?.str?.value || 0);
-        let basePower = efx.power || card.power || 0;
-        // Apply stat penalty to the entire damage calculation
-        let totalDmg = basePower + str + (run.mergeBonus || 0);
-        if (statMult < 1.0) {
-          totalDmg = Math.max(1, Math.round(totalDmg * statMult));
-        }
-        let dmg = totalDmg;
+        // New Combat System 2.0 formula
+        let dmg = CombatEngine.calculateCardValue(card, pStats);
         if (!hasFullStamina) dmg = Math.max(1, Math.floor(dmg / 2));
         targetCell.card.hp -= dmg;
         results.push({ type: 'damage', amount: dmg, cell: targetCell });
@@ -66,13 +95,7 @@ export class CombatEngine {
       case 'damage_all': {
         for (const cell of run.dungeon.grid) {
           if (!cell.revealed || cell.card.type !== DUNGEON_TEMPLATES.enemy || cell.card.defeated) continue;
-          let str = p.strength + (run.buffs?.str?.value || 0);
-          let basePower = efx.power || card.power || 0;
-          let totalDmg = basePower + str + (run.mergeBonus || 0);
-          if (statMult < 1.0) {
-            totalDmg = Math.max(1, Math.round(totalDmg * statMult));
-          }
-          let dmg = totalDmg;
+          let dmg = CombatEngine.calculateCardValue(card, pStats);
           if (!hasFullStamina) dmg = Math.max(1, Math.floor(dmg / 2));
           cell.card.hp -= dmg;
           results.push({ type: 'damage', amount: dmg, cell });
@@ -84,9 +107,12 @@ export class CombatEngine {
         break;
       }
       case 'heal': {
-        let amt = efx.amount || card.heal || 0;
+        let amt = efx.amount || card.power || 0;
         if (!amt) break;
-        amt = Math.max(1, Math.round(amt * statMult));
+        // Apply stat scaling to heal if card has mainStat/requiredStat
+        if (card.mainStat || card.statWeights) {
+          amt = CombatEngine.calculateCardValue({ ...card, baseDamage: amt }, pStats);
+        }
         p.hp = Math.min(p.hp + amt, p.maxHp);
         results.push({ type: 'heal', amount: amt });
         break;
@@ -94,7 +120,10 @@ export class CombatEngine {
       case 'armor': {
         let amt = efx.amount || card.power || 0;
         if (!amt) break;
-        amt = Math.max(1, Math.round(amt * statMult));
+        // Apply stat scaling to armor if card has mainStat/requiredStat
+        if (card.mainStat || card.statWeights) {
+          amt = CombatEngine.calculateCardValue({ ...card, baseDamage: amt }, pStats);
+        }
         p.armor += amt;
         results.push({ type: 'armor', amount: amt });
         break;
@@ -112,9 +141,14 @@ export class CombatEngine {
         if (!run.debuffs) run.debuffs = {};
         const key = `${targetCell.row}-${targetCell.col}`;
         targetCell.card.debuffs = targetCell.card.debuffs || [];
+        // Scale debuff amount by WIL stat if card has stat requirements
+        let debAmt = efx.amount || 0;
+        if (card.mainStat === 'WIL' || (card.statWeights && card.statWeights.WIL)) {
+          debAmt = CombatEngine.calculateCardValue({ ...card, baseDamage: debAmt }, pStats);
+        }
         targetCell.card.debuffs.push({
           type: efx.debuffType,
-          amount: efx.amount || 0,
+          amount: debAmt || 0,
           ticks: efx.ticks || 1,
         });
         results.push({ type: 'debuff', debuffType: efx.debuffType, cell: targetCell, ticks: efx.ticks || 1 });
@@ -124,13 +158,23 @@ export class CombatEngine {
         // Nullify damage from a single enemy for N ticks.
         if (!targetCell || targetCell.card.type !== DUNGEON_TEMPLATES.enemy || targetCell.card.defeated) break;
         targetCell.card.debuffs = targetCell.card.debuffs || [];
-        targetCell.card.debuffs.push({ type: 'nullify', amount: 0, ticks: efx.ticks || 3 });
-        results.push({ type: 'debuff', debuffType: 'nullify', cell: targetCell, ticks: efx.ticks || 3 });
+        let ticks = efx.ticks || 3;
+        // Scale duration by WIL
+        if (card.mainStat === 'WIL' || (card.statWeights && card.statWeights.WIL)) {
+          const wilBonus = Math.max(0, ((pStats.will || 0) - (card.requiredStat || 5))) * 0.1;
+          ticks = Math.round(ticks + wilBonus);
+        }
+        targetCell.card.debuffs.push({ type: 'nullify', amount: 0, ticks });
+        results.push({ type: 'debuff', debuffType: 'nullify', cell: targetCell, ticks });
         break;
       }
       case 'nullify_all_damage': {
         // Nullify damage from all enemies for N ticks.
-        const ticks = efx.ticks || 3;
+        let ticks = efx.ticks || 3;
+        if (card.mainStat === 'WIL' || (card.statWeights && card.statWeights.WIL)) {
+          const wilBonus = Math.max(0, ((pStats.will || 0) - (card.requiredStat || 5))) * 0.1;
+          ticks = Math.round(ticks + wilBonus);
+        }
         for (const cell of run.dungeon.grid) {
           if (!cell.revealed || cell.card.type !== DUNGEON_TEMPLATES.enemy || cell.card.defeated) continue;
           cell.card.debuffs = cell.card.debuffs || [];
@@ -142,7 +186,7 @@ export class CombatEngine {
       case 'reflect_damage': {
         // Reflect damage back to target enemy.
         if (!targetCell || targetCell.card.type !== DUNGEON_TEMPLATES.enemy || targetCell.card.defeated) break;
-        const amt = efx.amount || card.power || 0;
+        const amt = CombatEngine.calculateCardValue(card, pStats);
         targetCell.card.hp -= amt;
         results.push({ type: 'reflect', amount: amt, cell: targetCell });
         if (targetCell.card.hp <= 0) {
@@ -154,7 +198,12 @@ export class CombatEngine {
       case 'player_buff': {
         // Temporarily increase player stats for N ticks.
         if (!run.buffs) run.buffs = {};
-        const ticks = efx.ticks || 3;
+        let ticks = efx.ticks || 3;
+        // Scale buff duration by WIL
+        if (card.mainStat === 'WIL' || (card.statWeights && card.statWeights.WIL)) {
+          const wilBonus = Math.max(0, ((pStats.will || 0) - (card.requiredStat || 5))) * 0.1;
+          ticks = Math.round(ticks + wilBonus);
+        }
         if (efx.str) run.buffs.str = { value: efx.str, ticks };
         if (efx.agi) run.buffs.agi = { value: efx.agi, ticks };
         if (efx.vit) run.buffs.vit = { value: efx.vit, ticks };

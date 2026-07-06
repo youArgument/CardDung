@@ -42,7 +42,8 @@ export class GameState {
         stamina: 100 + (upg.startStamina || 0) * 10,
         maxStamina: 100 + (upg.startStamina || 0) * 10,
         gold: 0,
-        strength: Math.floor(totalStr / 2),
+        // Base attack bonus: STR × 0.5 (Combat System 2.0)
+        strength: Math.round(totalStr * 0.5),
         stats: {
           strength: totalStr,
           agility: totalAgi,

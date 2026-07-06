@@ -345,7 +345,8 @@ const Game = {
         run.player.stamina -= baseCost;
       }
 
-      let dmg = 2 + (run.player.strength || 0);
+      // Base Attack: 3 + STR×0.5 (Combat System 2.0) — strength already includes ×0.5 from state.js
+      let dmg = 3 + (run.player.strength || 0);
       if (!hasStamina) {
         // Low stamina penalty: half damage, no cost.
         dmg = Math.max(1, Math.floor(dmg / 2));

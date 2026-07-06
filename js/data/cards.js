@@ -5,29 +5,24 @@ export const STARTING_DECK = ['strike', 'strike', 'strike', 'defend', 'defend', 
 
 // Built-in fallback cards (used if server fetch fails or offline).
 const FALLBACK_CARDS = [
-  { id: 'strike', nameEn: 'Strike', nameRu: 'Удар', descEn: 'Deal 5 damage', descRu: 'Нанеси 5 урона', cost: 1, sprite: '⚔️', type: 'attack', power: 5 },
-  { id: 'defend', nameEn: 'Defend', nameRu: 'Защита', descEn: 'Gain 4 Armor', descRu: 'Получи 4 брони', cost: 1, sprite: '🛡️', type: 'armor', power: 4 },
-  { id: 'bash', nameEn: 'Bash', nameRu: 'Толчок', descEn: 'Deal 8 damage', descRu: 'Нанеси 8 урона', cost: 2, sprite: '🔨', type: 'attack', power: 8 },
-  { id: 'leech', nameEn: 'Leech', nameRu: 'Вампиризм', descEn: 'Deal 3, Heal 2', descRu: 'Нанеси 3, Лечись 2', cost: 1, sprite: '🧛', type: 'attack', power: 3, heal: 2 },
-  { id: 'fireball', nameEn: 'Fireball', nameRu: 'Огненный Шар', descEn: 'Deal 6 to all', descRu: '6 урона всем', cost: 2, sprite: '🔥', type: 'attack-all', power: 6 },
-  { id: 'dodge', nameEn: 'Dodge', nameRu: 'Уклонение', descEn: 'Gain 2 Armor', descRu: 'Получи 2 брони', cost: 0, sprite: '💨', type: 'armor', power: 2 },
-  { id: 'heavy', nameEn: 'Heavy Blow', nameRu: 'Тяжёлый Удар', descEn: 'Deal 10 damage', descRu: 'Нанеси 10 урона', cost: 2, sprite: '🪓', type: 'attack', power: 10 },
-  { id: 'poison', nameEn: 'Venom', nameRu: 'Яд', descEn: 'Deal 2, Poison 2', descRu: 'Нанеси 2, Яд 2', cost: 1, sprite: '🗡️', type: 'attack', power: 2, poison: 2 },
-  { id: 'channel', nameEn: 'Channel', nameRu: 'Канал', descEn: 'Gain 3 Stamina', descRu: 'Получи 3 стамины', cost: 1, sprite: '⚡', type: 'energy', power: 3 },
-  { id: 'heavy_slash', nameEn: 'Heavy Slash', nameRu: 'Тяжёлый Удар', descEn: 'Deal 7 damage (STR req)', descRu: 'Нанеси 7 урона (треб Сила)', cost: 1, sprite: '⚔️', type: 'attack', power: 7 },
-  { id: 'shield', nameEn: 'Shield', nameRu: 'Щит', descEn: 'Gain 6 Armor', descRu: 'Получи 6 брони', cost: 1, sprite: '🛡️', type: 'armor', power: 6 },
-  { id: 'parry', nameEn: 'Parry', nameRu: 'Парирование', descEn: 'Gain 3 Armor', descRu: 'Получи 3 брони', cost: 0, sprite: '🔄', type: 'armor', power: 3 },
-  { id: 'fire_bolt', nameEn: 'Fire Bolt', nameRu: 'Огненная Стрела', descEn: 'Deal 5 damage (INT req)', descRu: 'Нанеси 5 урона (треб Инт)', cost: 1, sprite: '🔥', type: 'attack', power: 5,
-    effects: [{ action: 'damage', power: 5, req: { intelligence: 4 } }] },
-  { id: 'frost', nameEn: 'Frost', nameRu: 'Мороз', descEn: 'Deal 4 damage (INT req)', descRu: 'Нанеси 4 урона (треб Инт)', cost: 1, sprite: '❄️', type: 'attack', power: 4,
-    effects: [{ action: 'damage', power: 4, req: { intelligence: 3 } }] },
-  { id: 'mana_shield', nameEn: 'Mana Shield', nameRu: 'Магический Щит', descEn: 'Gain 5 Armor (INT req)', descRu: 'Получи 5 брони (треб Инт)', cost: 1, sprite: '🔵', type: 'armor', power: 5,
-    effects: [{ action: 'armor', amount: 5, req: { intelligence: 3 } }] },
-  { id: 'arcane_missile', nameEn: 'Arcane Missile', nameRu: 'Тайная Стрела', descEn: 'Deal 8 damage (INT req)', descRu: 'Нанеси 8 урона (треб Инт)', cost: 2, sprite: '✨', type: 'attack', power: 8,
-    effects: [{ action: 'damage', power: 8, req: { intelligence: 6 } }] },
-  { id: 'dagger', nameEn: 'Dagger', nameRu: 'Кинжал', descEn: 'Deal 3 damage', descRu: 'Нанеси 3 урона', cost: 0, sprite: '🗡️', type: 'attack', power: 3 },
-  { id: 'backstab', nameEn: 'Backstab', nameRu: 'Удар в Спину', descEn: 'Deal 12 damage (AGI req)', descRu: 'Нанеси 12 урона (треб Ловк)', cost: 2, sprite: '🔪', type: 'attack', power: 12,
-    effects: [{ action: 'damage', power: 12, req: { agility: 5 } }] },
+  { id: 'strike', nameEn: 'Strike', nameRu: 'Удар', descEn: 'Deal physical damage based on STR', descRu: 'Нанеси физический урон от Силы', cost: 1, sprite: '⚔️', type: 'attack', power: 5, baseDamage: 3, mainStat: 'STR', requiredStat: 5, scaling: 0.35, damageType: 'Physical', tags: ['Melee'], effects: [{ action: 'damage' }] },
+  { id: 'defend', nameEn: 'Defend', nameRu: 'Защита', descEn: 'Gain armor based on VIT', descRu: 'Получи броню от Выносливости', cost: 1, sprite: '🛡️', type: 'armor', power: 4, baseDamage: 3, mainStat: 'VIT', requiredStat: 4, scaling: 0.30, damageType: 'Armor', tags: ['Defense'], effects: [{ action: 'armor' }] },
+  { id: 'bash', nameEn: 'Bash', nameRu: 'Толчок', descEn: 'Heavy physical strike', descRu: 'Мощный физический удар', cost: 2, sprite: '🔨', type: 'attack', power: 8, baseDamage: 7, mainStat: 'STR', requiredStat: 8, scaling: 0.40, damageType: 'Physical', tags: ['Melee'], effects: [{ action: 'damage' }] },
+  { id: 'leech', nameEn: 'Leech', nameRu: 'Вампиризм', descEn: 'Deal damage and heal based on WIL', descRu: 'Нанеси урон и лечись от Воли', cost: 1, sprite: '🧛', type: 'attack', power: 3, heal: 2, baseDamage: 2, mainStat: 'WIL', requiredStat: 4, scaling: 0.30, damageType: 'Magic', tags: ['LifeSteal'], effects: [{ action: 'damage' }, { action: 'heal', amount: 1 }] },
+  { id: 'fireball', nameEn: 'Fireball', nameRu: 'Огненный Шар', descEn: 'Deal magic damage to all enemies based on INT', descRu: 'Магический урон всем врагам от Интеллекта', cost: 2, sprite: '🔥', type: 'attack-all', power: 6, baseDamage: 5, mainStat: 'INT', requiredStat: 8, scaling: 0.30, damageType: 'Magic', tags: ['Fire', 'AOE'], effects: [{ action: 'damage_all' }] },
+  { id: 'dodge', nameEn: 'Dodge', nameRu: 'Уклонение', descEn: 'Gain armor based on AGI', descRu: 'Получи броню от Ловкости', cost: 0, sprite: '💨', type: 'armor', power: 2, baseDamage: 1, mainStat: 'AGI', requiredStat: 3, scaling: 0.25, damageType: 'Armor', tags: ['Evasion'], effects: [{ action: 'armor' }] },
+  { id: 'heavy', nameEn: 'Heavy Blow', nameRu: 'Тяжёлый Удар', descEn: 'Massive physical strike', descRu: 'Огромный физический удар', cost: 2, sprite: '🪓', type: 'attack', power: 10, baseDamage: 9, mainStat: 'STR', requiredStat: 10, scaling: 0.45, damageType: 'Physical', tags: ['Melee'], effects: [{ action: 'damage' }] },
+  { id: 'poison', nameEn: 'Venom', nameRu: 'Яд', descEn: 'Deal damage and apply poison based on INT', descRu: 'Нанеси урон и наяд от Интеллекта', cost: 1, sprite: '🗡️', type: 'attack', power: 2, poison: 2, baseDamage: 2, mainStat: 'INT', requiredStat: 4, scaling: 0.30, damageType: 'Magic', tags: ['Poison'], effects: [{ action: 'damage' }, { action: 'apply_debuff', debuffType: 'poison', amount: 1, ticks: 3 }] },
+  { id: 'channel', nameEn: 'Channel', nameRu: 'Канал', descEn: 'Restore stamina based on WIL', descRu: 'Восстанови стамину от Воли', cost: 1, sprite: '⚡', type: 'energy', power: 3, baseDamage: 2, mainStat: 'WIL', requiredStat: 3, scaling: 0.25, damageType: 'Utility', tags: ['Stamina'], effects: [{ action: 'stamina' }] },
+  { id: 'heavy_slash', nameEn: 'Heavy Slash', nameRu: 'Тяжёлый Удар', descEn: 'Powerful physical slash', descRu: 'Мощный физический удар', cost: 1, sprite: '⚔️', type: 'attack', power: 7, baseDamage: 5, mainStat: 'STR', requiredStat: 6, scaling: 0.35, damageType: 'Physical', tags: ['Melee'], effects: [{ action: 'damage' }] },
+  { id: 'shield', nameEn: 'Shield', nameRu: 'Щит', descEn: 'Gain heavy armor based on VIT+STR', descRu: 'Получи тяжёлую броню от Выносливости+Силы', cost: 1, sprite: '🛡️', type: 'armor', power: 6, baseDamage: 4, statWeights: { VIT: 0.8, STR: 0.2 }, requiredStat: 6, scaling: 0.35, damageType: 'Armor', tags: ['Defense'], effects: [{ action: 'armor' }] },
+  { id: 'parry', nameEn: 'Parry', nameRu: 'Парирование', descEn: 'Quick armor based on AGI', descRu: 'Быстрая броня от Ловкости', cost: 0, sprite: '🔄', type: 'armor', power: 3, baseDamage: 2, mainStat: 'AGI', requiredStat: 4, scaling: 0.30, damageType: 'Armor', tags: ['Defense'], effects: [{ action: 'armor' }] },
+  { id: 'fire_bolt', nameEn: 'Fire Bolt', nameRu: 'Огненная Стрела', descEn: 'Magic damage based on INT', descRu: 'Магический урон от Интеллекта', cost: 1, sprite: '🔥', type: 'attack', power: 5, baseDamage: 4, mainStat: 'INT', requiredStat: 4, scaling: 0.30, damageType: 'Magic', tags: ['Fire'], effects: [{ action: 'damage' }] },
+  { id: 'frost', nameEn: 'Frost', nameRu: 'Мороз', descEn: 'Magic damage based on INT+WIL', descRu: 'Магический урон от Интеллекта+Воли', cost: 1, sprite: '❄️', type: 'attack', power: 4, baseDamage: 3, statWeights: { INT: 0.8, WIL: 0.2 }, requiredStat: 4, scaling: 0.30, damageType: 'Magic', tags: ['Ice'], effects: [{ action: 'damage' }] },
+  { id: 'mana_shield', nameEn: 'Mana Shield', nameRu: 'Магический Щит', descEn: 'Gain armor based on INT', descRu: 'Получи броню от Интеллекта', cost: 1, sprite: '🔵', type: 'armor', power: 5, baseDamage: 3, mainStat: 'INT', requiredStat: 5, scaling: 0.30, damageType: 'Armor', tags: ['Defense', 'Magic'], effects: [{ action: 'armor' }] },
+  { id: 'arcane_missile', nameEn: 'Arcane Missile', nameRu: 'Тайная Стрела', descEn: 'Powerful magic damage based on INT', descRu: 'Мощный магический урон от Интеллекта', cost: 2, sprite: '✨', type: 'attack', power: 8, baseDamage: 6, mainStat: 'INT', requiredStat: 8, scaling: 0.40, damageType: 'Magic', tags: ['Arcane'], effects: [{ action: 'damage' }] },
+  { id: 'dagger', nameEn: 'Dagger', nameRu: 'Кинжал', descEn: 'Quick physical strike based on AGI', descRu: 'Быстрый физический удар от Ловкости', cost: 0, sprite: '🗡️', type: 'attack', power: 3, baseDamage: 2, mainStat: 'AGI', requiredStat: 3, scaling: 0.30, damageType: 'Physical', tags: ['Melee'], effects: [{ action: 'damage' }] },
+  { id: 'backstab', nameEn: 'Backstab', nameRu: 'Удар в Спину', descEn: 'Devastating AGI strike', descRu: 'Разрушающий удар от Ловкости', cost: 2, sprite: '🔪', type: 'attack', power: 12, baseDamage: 10, mainStat: 'AGI', requiredStat: 8, scaling: 0.50, damageType: 'Physical', tags: ['Melee', 'Backstab'], effects: [{ action: 'damage' }] },
 ];
 
 // Populate PLAYER_CARDS from an array of card objects.
@@ -49,9 +44,18 @@ function populateCards(cardsArray) {
 
     // New schema fields.
     if (c.targetMode) entry.targetMode = c.targetMode;
-    if (c.effects && c.effects.length) entry.effects = [...c.effects];
+    if (c.effects && c.effects.length) entry.effects = JSON.parse(JSON.stringify(c.effects));
     if (c.rarity) entry.rarity = c.rarity;
     if (c.returnToHand) entry.returnToHand = true;
+
+    // Combat System 2.0 fields
+    if (c.baseDamage != null) entry.baseDamage = c.baseDamage;
+    if (c.mainStat) entry.mainStat = c.mainStat;
+    if (c.requiredStat != null) entry.requiredStat = c.requiredStat;
+    if (c.scaling != null) entry.scaling = c.scaling;
+    if (c.statWeights) entry.statWeights = JSON.parse(JSON.stringify(c.statWeights));
+    if (c.damageType) entry.damageType = c.damageType;
+    if (c.tags) entry.tags = [...c.tags];
 
     PLAYER_CARDS[c.id] = entry;
   }
