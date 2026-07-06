@@ -222,9 +222,7 @@ const Game = {
       }, 1000);
 
       // Cards that need manual targeting can be dragged.
-      const uuid = dragCard.dataset.uuid;
-      const run = this.state.run;
-      const card = run?.deck?.hand?.find(c => c.uuid === uuid);
+       const card = run?.deck?.hand?.find(c => c.uuid === uuid);
       if (!card) { dragTypeAllowed = false; return; }
       const tm = card.targetMode || '';
       dragTypeAllowed = tm.includes('target') || tm.includes('auto') || card.type === 'attack' || card.type === 'attack-all';
