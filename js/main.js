@@ -243,6 +243,12 @@ const Game = {
     const handleStart = (e) => {
       const cardEl = e.target.closest('.hand-card');
       if (!cardEl) return;
+
+      // Cancel long-press popup timer — user is starting a drag.
+      if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
+      // Hide popup if it's already open from a previous long press.
+      this.hideHandCardPopup();
+
       dragCard = cardEl;
       didDrag = false;
 
