@@ -92,15 +92,6 @@ const Game = {
       handleGridTap(e.target.closest('.dungeon-card'));
     });
     // Direct touch handling for mobile — avoids click synthesis delays/conflicts.
-    gridEl.addEventListener('touchend', (e) => {
-      const cardEl = e.target.closest('.dungeon-card');
-      if (!cardEl) return;
-      // Prevent the synthesized click from double-firing
-      e.preventDefault();
-      handleGridTap(cardEl);
-    });
-
-    // Long press on enemy cells to inspect hand.
     let longPressTimer = null;
     let longPressFired = false;
     const startLongPress = (cardEl) => {
@@ -112,12 +103,24 @@ const Game = {
       }, 500);
     };
     const cancelLongPress = () => { clearTimeout(longPressTimer); };
+
     gridEl.addEventListener('touchstart', (e) => startLongPress(e.target.closest('.dungeon-card')), { passive: true });
-    gridEl.addEventListener('touchend', cancelLongPress);
+    gridEl.addEventListener('touchend', (e) => {
+      const cardEl = e.target.closest('.dungeon-card');
+      if (!cardEl) return;
+      cancelLongPress();
+      // If long press fired, don't trigger click.
+      if (longPressFired) { longPressFired = false; e.preventDefault(); return; }
+      // Prevent the synthesized click from double-firing
+      e.preventDefault();
+      handleGridTap(cardEl);
+    });
     gridEl.addEventListener('touchmove', cancelLongPress);
+
+    // Desktop: mouse long press for enemy hand inspection.
     gridEl.addEventListener('mousedown', (e) => startLongPress(e.target.closest('.dungeon-card')));
-    gridEl.addEventListener('mouseup', cancelLongPress);
-    gridEl.addEventListener('mouseleave', cancelLongPress);
+    gridEl.addEventListener('mouseup', () => { clearTimeout(longPressTimer); });
+    gridEl.addEventListener('mouseleave', () => { clearTimeout(longPressTimer); });
 
     // Hand
     const handEl = document.getElementById('hand-container');
