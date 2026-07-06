@@ -14,6 +14,9 @@ import { ENEMY_CARDS } from './data/enemies.js';
 import { CLASSES } from './data/classes.js';
 import { t, setLanguage, applyTranslations, getLanguage } from './system/i18n.js';
 
+// Stat key mapping for Combat System 2.0.
+const STAT_MAP = { STR: 'strength', AGI: 'agility', INT: 'intelligence', WIL: 'will', VIT: 'vitality' };
+
 const Game = {
   state: null,
   audio: null,
@@ -153,9 +156,59 @@ const Game = {
     });
 
     // Enemy hand popup close
-    document.getElementById('enemy-hand-popup').addEventListener('click', (e) => {
-      if (e.target.id === 'enemy-hand-popup' || e.target.id === 'btn-enemy-hand-close') this.hideEnemyHandPopup();
-    });
+     document.getElementById('enemy-hand-popup').addEventListener('click', (e) => {
+       if (e.target.id === 'enemy-hand-popup' || e.target.id === 'btn-enemy-hand-close') this.hideEnemyHandPopup();
+     });
+
+    // Hand card stat popup close
+     document.getElementById('hand-card-popup').addEventListener('click', (e) => {
+       if (e.target.id === 'hand-card-popup' || e.target.id === 'btn-hand-card-close') this.hideHandCardPopup();
+     });
+
+    // Long press on hand cards for stat info.
+     let _handLongTimer = null;
+     let _handLongFired = false;
+
+     handEl.addEventListener('touchstart', (e) => {
+       const cardEl = e.target.closest('.hand-card');
+       if (!cardEl) return;
+       _handLongFired = false;
+       const uuid = cardEl.dataset.uuid;
+       const run = this.state.run;
+       if (!run) return;
+       const card = run.deck.hand.find(c => c.uuid === uuid);
+       if (!card) return;
+       _handLongTimer = setTimeout(() => {
+         _handLongFired = true;
+         const pStats = run.player.stats || {};
+         this.showHandCardPopup(card, pStats);
+       }, 500);
+     }, { passive: true });
+
+     handEl.addEventListener('touchend', (e) => {
+       if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
+     });
+
+     // Desktop: mouse long press for hand card stat info.
+     handEl.addEventListener('mousedown', (e) => {
+       const cardEl = e.target.closest('.hand-card');
+       if (!cardEl) return;
+       _handLongFired = false;
+       const uuid = cardEl.dataset.uuid;
+       const run = this.state.run;
+       if (!run) return;
+       const card = run.deck.hand.find(c => c.uuid === uuid);
+       if (!card) return;
+       _handLongTimer = setTimeout(() => {
+         _handLongFired = true;
+         const pStats = run.player.stats || {};
+         this.showHandCardPopup(card, pStats);
+       }, 500);
+     });
+
+     handEl.addEventListener('mouseup', (e) => {
+       if (_handLongTimer) { clearTimeout(_handLongTimer); _handLongTimer = null; }
+     });
 
     // Exit popup
     document.getElementById('exit-popup').addEventListener('click', (e) => {
@@ -708,6 +761,88 @@ const Game = {
 
   hideEnemyHandPopup() {
     document.getElementById('enemy-hand-popup').classList.add('hidden');
+  },
+
+  // ===== HAND CARD STAT INFO POPUP (long press) =====
+  showHandCardPopup(card, pStats) {
+    const popup = document.getElementById('hand-card-popup');
+    if (!popup) return;
+
+    const lang = localStorage.getItem('carddung-lang') || 'en';
+    const name = lang === 'ru' ? card.nameRu : (card.nameEn || card.name);
+    const desc = lang === 'ru' ? card.descRu : (card.descEn || card.desc);
+
+    document.getElementById('hand-popup-sprite').textContent = card.sprite;
+    document.getElementById('hand-popup-name').textContent = name;
+    document.getElementById('hand-popup-desc').textContent = desc;
+
+    // Card type label.
+    const typeLabels = { attack: 'Атака', 'attack-all': 'AOE Атака', armor: 'Броня', heal: 'Лечение', buff: 'Бафф', energy: 'Стамина' };
+    document.getElementById('hand-popup-type').textContent = `${typeLabels[card.type] || card.type} | Cost: ${card.cost}`;
+
+    // Stat requirements + mastery calculation.
+    let statReqHtml = '';
+    let masteryHtml = '';
+
+    if (card.mainStat) {
+      const statLabels = { STR: 'Сила', AGI: 'Ловкость', INT: 'Интеллект', WIL: 'Воля', VIT: 'Выносливость' };
+      const statKey = STAT_MAP[card.mainStat];
+      const playerVal = pStats[statKey] || 0;
+      const req = card.requiredStat || 0;
+      const met = playerVal >= req;
+      const color = met ? '#4a7c59' : '#c0392b';
+      statReqHtml = `<span style="color:${color}">${card.mainStat}: ${playerVal}/${req}</span>`;
+
+      // Mastery calculation.
+      const effectiveStat = CombatEngine.getEffectiveStat(card, pStats);
+      const mastery = CombatEngine.getMastery(effectiveStat, req);
+      const bonus = CombatEngine.getScalingBonus(effectiveStat, req, card.scaling || 0);
+      const baseDmg = card.baseDamage || 0;
+      const total = Math.max(1, Math.round(baseDmg * mastery + bonus));
+
+      const masteryPct = Math.round(mastery * 100);
+      const masteryColor = mastery >= 1.0 ? '#4a7c59' : (mastery >= 0.6 ? '#c9a84c' : '#c0392b');
+      masteryHtml = `Mastery: ${masteryPct}% | Дамедж: ${total}`;
+      if (bonus > 0) masteryHtml += ` +${bonus.toFixed(1)} bonus`;
+
+    } else if (card.statWeights) {
+      const statLabels = { STR: 'Сила', AGI: 'Ловкость', INT: 'Интеллект', WIL: 'Воля', VIT: 'Выносливость' };
+      const STAT_MAP = { STR: 'strength', AGI: 'agility', INT: 'intelligence', WIL: 'will', VIT: 'vitality' };
+      let parts = [];
+      for (const [stat, weight] of Object.entries(card.statWeights)) {
+        const playerVal = pStats[STAT_MAP[stat]] || 0;
+        const pct = Math.round(weight * 100);
+        parts.push(`<span>${stat}${pct}%: ${playerVal}</span>`);
+      }
+      statReqHtml = parts.join(' | ');
+
+      // Mastery calculation for hybrid.
+      const effectiveStat = CombatEngine.getEffectiveStat(card, pStats);
+      const req = card.requiredStat || 0;
+      const mastery = CombatEngine.getMastery(effectiveStat, req);
+      const bonus = CombatEngine.getScalingBonus(effectiveStat, req, card.scaling || 0);
+      const baseDmg = card.baseDamage || 0;
+      const total = Math.max(1, Math.round(baseDmg * mastery + bonus));
+
+      const masteryPct = Math.round(mastery * 100);
+      const masteryColor = mastery >= 1.0 ? '#4a7c59' : (mastery >= 0.6 ? '#c9a84c' : '#c0392b');
+      masteryHtml = `<span style="color:${masteryColor}">Effective: ${effectiveStat.toFixed(1)} | Mastery: ${masteryPct}% | Дамедж: ${total}</span>`;
+      if (bonus > 0) masteryHtml += ` +${bonus.toFixed(1)} bonus`;
+
+    } else {
+      // No stat requirements.
+      statReqHtml = '<span style="color:#666">Нет требований к статам</span>';
+      masteryHtml = '';
+    }
+
+    document.getElementById('hand-popup-stat-req').innerHTML = statReqHtml;
+    document.getElementById('hand-popup-mastery').innerHTML = masteryHtml;
+
+    popup.classList.remove('hidden');
+  },
+
+  hideHandCardPopup() {
+    document.getElementById('hand-card-popup').classList.add('hidden');
   },
 
   updateRoomProgress() {

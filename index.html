@@ -221,6 +221,25 @@
         <button class="popup-btn close" id="btn-enemy-hand-close" data-i18n="deck.close"></button>
       </div>
     </div>
+
+    <!-- Hand card stat info popup (long press on hand card) -->
+    <div id="hand-card-popup" class="card-popup hidden">
+      <div class="popup-content">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span id="hand-popup-sprite" style="font-size:28px"></span>
+          <div>
+            <div class="popup-name" id="hand-popup-name"></div>
+            <div style="font-size:10px;color:#666" id="hand-popup-type"></div>
+          </div>
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #333;padding:8px;margin-bottom:8px;font-size:11px">
+          <div id="hand-popup-stat-req" style="margin-bottom:4px"></div>
+          <div id="hand-popup-mastery" style="color:#c9a84c"></div>
+        </div>
+        <div id="hand-popup-desc" style="font-size:11px;color:#888;margin-bottom:8px;text-align:center;padding:0 8px"></div>
+        <button class="popup-btn close" id="btn-hand-card-close">Закрыть</button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="js/main.js"></script>
