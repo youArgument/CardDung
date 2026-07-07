@@ -82,19 +82,21 @@ export class WorldMap {
     this._findSpawn();
   }
 
-  /** Generate all hex coords for a given ring. */
+  /** Generate all hex coords at exactly `ring` distance from center (0,0). */
   _ringCoords(ring) {
-    if (ring === 0) return [{ q: 0, r: 0 }];
+    return this._hexRing(0, 0, ring);
+  }
+
+  /** Generate all hex coords at exactly `radius` distance from (cq, cr).
+   *  Brute-force: check bounding box, keep only those at exact distance. */
+  _hexRing(cq, cr, radius) {
+    if (radius === 0) return [{ q: cq, r: cr }];
     const coords = [];
-    // Start at east edge of ring.
-    let q = ring, r = -ring;
-    for (let dir = 0; dir < 6; dir++) {
-      const dq = HEX_DIRECTIONS[dir].q;
-      const dr = HEX_DIRECTIONS[dir].r;
-      for (let step = 0; step < ring; step++) {
-        coords.push({ q, r });
-        q += dq;
-        r += dr;
+    for (let q = cq - radius; q <= cq + radius; q++) {
+      for (let r = cr - radius; r <= cr + radius; r++) {
+        if (hexDist({ q, r }, { q: cq, r: cr }) === radius) {
+          coords.push({ q, r });
+        }
       }
     }
     return coords;
@@ -137,22 +139,9 @@ export class WorldMap {
 
   // ─── Fog of War ──────────────────────────
 
-  /** Generate ring coords relative to an arbitrary center (cq, cr). */
-  _ringCoordsAt(cq, cr, ring) {
-    if (ring === 0) return [{ q: cq, r: cr }];
-    const coords = [];
-    // Start at east edge of ring (relative), then offset by center.
-    let q = cq + ring, r = cr - ring;
-    for (let dir = 0; dir < 6; dir++) {
-      const dq = HEX_DIRECTIONS[dir].q;
-      const dr = HEX_DIRECTIONS[dir].r;
-      for (let step = 0; step < ring; step++) {
-        coords.push({ q, r });
-        q += dq;
-        r += dr;
-      }
-    }
-    return coords;
+  /** Generate all hex coords at exactly `radius` distance from (cq, cr). */
+  _ringCoordsAt(cq, cr, radius) {
+    return this._hexRing(cq, cr, radius);
   }
 
   /** Reveal hexes within `radius` of `pos` (ring-based — no full grid scan). */
@@ -169,13 +158,15 @@ export class WorldMap {
   }
 
   revealAround(pos, radius = 1) {
+    // All hexes within radius → at least explored (illuminated, not hidden).
     this.revealArea(pos, radius, FOG.explored);
-    this.revealArea(pos, radius, FOG.visible);
+    // Only immediate neighbours (distance ≤ 1) → fully visible.
+    this.revealArea(pos, 1, FOG.visible);
   }
 
   /** Update fog after player moves from oldPos → newPos (ring-based). */
   updateFog(oldPos, newPos) {
-    // Old area: dim visible cells within radius 4 of old position → explored.
+    // Old area: dim all cells within radius 4 of old position → explored.
     for (let ring = 0; ring <= 4; ring++) {
       for (const coord of this._ringCoordsAt(oldPos.q, oldPos.r, ring)) {
         const cell = this.grid[hexKey(coord.q, coord.r)];
@@ -184,8 +175,10 @@ export class WorldMap {
         }
       }
     }
-    // New area → visible (radius 4 for better situational awareness).
-    this.revealArea(newPos, 4, FOG.visible);
+    // New area: all hexes within radius 4 → at least explored.
+    this.revealArea(newPos, 4, FOG.explored);
+    // Immediate neighbours (distance ≤ 1) → fully visible.
+    this.revealArea(newPos, 1, FOG.visible);
   }
 
   // ─── Movement ─────────────────────────────
@@ -324,7 +317,10 @@ export class WorldMap {
     map.playerPos = data.playerPos || { q: 0, r: 0 };
     map.teleportMode = false;
     map.activeGraceId = data.activeGraceId;
-    map.revealArea(map.playerPos, 4, FOG.visible);
+    // All hexes within radius 4 → at least explored.
+    map.revealArea(map.playerPos, 4, FOG.explored);
+    // Immediate neighbours → fully visible.
+    map.revealArea(map.playerPos, 1, FOG.visible);
     return map;
   }
 }
