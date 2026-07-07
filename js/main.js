@@ -98,7 +98,7 @@ const Game = {
        if (!cardEl) return;
        // Block grid interaction while blocking popups are open (exit, rest, confirm, enemy-hand).
        // Hand-card stat popup is informational and should NOT block drag/drop.
-       const blockingPopups = document.querySelectorAll('#exit-popup:not(.hidden), #rest-popup:not(.hidden), #class-confirm-popup:not(.hidden), #enemy-hand-popup:not(.hidden)');
+        const blockingPopups = document.querySelectorAll('#exit-popup:not(.hidden), #rest-popup:not(.hidden), #class-confirm-popup:not(.hidden), #enemy-hand-popup:not(.hidden), #hand-context-popup:not(.hidden)');
        if (blockingPopups.length > 0) return;
       const row = parseInt(cardEl.dataset.row);
       const col = parseInt(cardEl.dataset.col);
@@ -138,23 +138,146 @@ const Game = {
     gridEl.addEventListener('mouseup', () => { clearTimeout(longPressTimer); });
     gridEl.addEventListener('mouseleave', () => { clearTimeout(longPressTimer); });
 
-    // Hand
+    // Hand — drag gestures in place: up = target, down = info
     const handEl = document.getElementById('hand-container');
-    handEl.dataset.wasDragging = '0';
-    handEl.addEventListener('click', (e) => {
+    let _dragState = null;
+
+    const startCardDrag = (e) => {
       const cardEl = e.target.closest('.hand-card');
       if (!cardEl) return;
-      if (handEl.dataset.wasDragging === '1') return;
-      this.onHandCardClick(cardEl.dataset.uuid);
-    });
+      e.preventDefault();
 
-    // Prevent the click from bubbling into drag logic and causing unintended plays.
-     // (Touch/click synthesis can trigger unexpected mousedown/mouseup sequences.)
-     handEl.addEventListener('mousedown', (e) => {
-       e.stopPropagation();
-     });
+      const run = this.state.run;
+      if (!run) return;
+      const uuid = cardEl.dataset.uuid;
+      const touch = e.touches ? e.touches[0] : e;
+      const rect = cardEl.getBoundingClientRect();
 
-     this.setupDragDrop(handEl, gridEl);
+      // Targeting arrow element (styles from CSS class, JS only sets position/size/display)
+      const arrow = document.createElement('div');
+      arrow.className = 'card-target-arrow';
+      arrow.style.display = 'none';
+      arrow.style.height = '0px';
+      document.body.appendChild(arrow);
+
+      // Info overlay element
+      const infoEl = document.createElement('div');
+      infoEl.className = 'card-drag-info';
+      infoEl.style.cssText = 'position:fixed;z-index:290;background:rgba(15,15,25,0.95);border:2px solid #c9a84c;border-radius:8px;padding:10px 14px;pointer-events:none;font-size:12px;color:#ddd;text-align:center;display:none;max-width:200px';
+      document.body.appendChild(infoEl);
+
+      _dragState = { uuid, cardEl, arrow, infoEl, rect, startX: touch.clientX, startY: touch.clientY };
+    };
+
+    const moveCardDrag = (e) => {
+      if (!_dragState) return;
+      e.preventDefault();
+      const touch = e.touches ? e.touches[0] : e;
+      const dy = touch.clientY - _dragState.startY;
+      const threshold = 25;
+
+      // Visual feedback on card: slight transform based on direction
+      if (dy < -threshold) {
+        _dragState.cardEl.style.transform = `translateY(${Math.max(dy, -20)}px)`;
+        _dragState.cardEl.style.boxShadow = '0 0 12px rgba(0,255,136,0.5)';
+
+        // Highlight enemies
+        const run = this.state.run;
+        document.querySelectorAll('.dungeon-card.enemy-card').forEach(el => {
+          const row = parseInt(el.dataset.row);
+          const col = parseInt(el.dataset.col);
+          const cell = run?.dungeon.grid.find(c => c.row === row && c.col === col);
+          if (cell?.card.revealed && !cell.card.defeated) el.classList.add('targetable');
+          else el.classList.remove('targetable');
+        });
+
+        // Arrow from card toward nearest enemy (find via DOM)
+        const targetableEls = document.querySelectorAll('.dungeon-card.enemy-card.targetable');
+        let nearestEl = null, minDist = Infinity;
+        for (const te of targetableEls) {
+          const elRect = te.getBoundingClientRect();
+          const d = Math.hypot(elRect.left + elRect.width/2 - _dragState.rect.left, elRect.top - _dragState.rect.top);
+          if (d < minDist) { minDist = d; nearestEl = te; }
+        }
+        if (nearestEl) {
+          const targetRect = nearestEl.getBoundingClientRect();
+          const tx = targetRect.left + targetRect.width / 2;
+          const ty = targetRect.top;
+          const cx = _dragState.rect.left + _dragState.rect.width / 2;
+          const cy = _dragState.rect.top - 10;
+          const angle = Math.atan2(ty - cy, tx - cx) * 180 / Math.PI;
+          const dist = Math.hypot(tx - cx, ty - cy);
+          _dragState.arrow.style.display = 'block';
+          _dragState.arrow.style.left = `${cx}px`;
+          _dragState.arrow.style.top = `${cy}px`;
+          _dragState.arrow.style.height = `${Math.max(dist * 0.7, 50)}px`;
+          _dragState.arrow.style.transform = `rotate(${angle}deg)`;
+        }
+        _dragState.infoEl.style.display = 'none';
+
+      } else if (dy > threshold) {
+        // Dragging DOWN — show info below card
+        _dragState.cardEl.style.transform = `translateY(${Math.min(dy, 15)}px)`;
+        _dragState.cardEl.style.boxShadow = '0 0 8px rgba(201,168,76,0.4)';
+
+        document.querySelectorAll('.dungeon-card.targetable').forEach(el => el.classList.remove('targetable'));
+        _dragState.arrow.style.display = 'none';
+
+        const run = this.state.run;
+        const card = run?.deck?.hand.find(c => c.uuid === _dragState.uuid);
+        if (card) {
+          let name = card.name, desc = card.desc || '';
+          if (card.id) { name = t(`card.${card.id}.name`, card.name); desc = t(`card.${card.id}.desc`, desc); }
+          const pStats = run.player.stats || {};
+          let extra = `Cost: ${card.cost} | Type: ${card.type}`;
+          if (card.requiredStat) { const val = CombatEngine.calculateCardValue(card, pStats); extra += ` | Power: ${val}`; }
+          _dragState.infoEl.innerHTML = `<div style="font-size:16px;margin-bottom:4px">${card.sprite}</div><div style="font-weight:bold;color:#c9a84c">${name}</div><div style="margin:4px 0;color:#aaa">${desc}</div><div style="color:#888;font-size:10px">${extra}</div>`;
+          _dragState.infoEl.style.display = 'block';
+          _dragState.infoEl.style.left = `${_dragState.rect.left - 40}px`;
+          _dragState.infoEl.style.top = `${_dragState.rect.top - dy - 80}px`;
+        }
+
+      } else {
+        // Neutral — reset card, hide overlays
+        _dragState.cardEl.style.transform = '';
+        _dragState.cardEl.style.boxShadow = '';
+        document.querySelectorAll('.dungeon-card.targetable').forEach(el => el.classList.remove('targetable'));
+        _dragState.arrow.style.display = 'none';
+        _dragState.infoEl.style.display = 'none';
+      }
+    };
+
+    const endCardDrag = (e) => {
+      if (!_dragState) return;
+      const touch = e.changedTouches ? e.changedTouches[0] : e;
+      const dy = touch.clientY - _dragState.startY;
+      const threshold = 35;
+
+      // Reset card visual
+      _dragState.cardEl.style.transform = '';
+      _dragState.cardEl.style.boxShadow = '';
+      document.querySelectorAll('.dungeon-card.targetable').forEach(el => el.classList.remove('targetable'));
+      _dragState.arrow.remove();
+      _dragState.infoEl.remove();
+
+      if (dy < -threshold) {
+        // Dragged UP — targeting
+        this.enterTargetingModeFromDrag(_dragState.uuid);
+      } else if (Math.abs(dy) <= threshold) {
+        // Tap — play card normally
+        this.playCardFromTap(_dragState.uuid);
+      }
+
+      _dragState = null;
+    };
+
+    handEl.addEventListener('mousedown', startCardDrag);
+    document.addEventListener('mousemove', moveCardDrag);
+    document.addEventListener('mouseup', endCardDrag);
+    handEl.addEventListener('touchstart', startCardDrag, { passive: false });
+    document.addEventListener('touchmove', moveCardDrag, { passive: false });
+    document.addEventListener('touchend', endCardDrag);
+    handEl.addEventListener('contextmenu', e => e.preventDefault());
 
     // Card popup close on backdrop
      document.getElementById('card-popup').addEventListener('click', (e) => {
@@ -193,115 +316,6 @@ const Game = {
       if (this._confirmCallback) this._confirmCallback();
     });
     document.getElementById('btn-confirm-no').addEventListener('click', () => this.hideConfirm());
-  },
-
-  setupDragDrop(handEl, gridEl) {
-    let dragCard = null;
-    let dragClone = null;
-    let didDrag = false;
-    let dragTypeAllowed = false;
-    let _longPressTimer = null;
-
-    const handleStart = (e) => {
-      const cardEl = e.target.closest('.hand-card');
-      if (!cardEl) return;
-
-      // Cancel any existing long-press timer and hide popup.
-      if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
-      this.hideHandCardPopup();
-
-      dragCard = cardEl;
-      didDrag = false;
-
-      // Start long-press timer: if user holds for 1000ms without moving, show stat popup.
-      const uuid = cardEl.dataset.uuid;
-      const run = this.state.run;
-      _longPressTimer = setTimeout(() => {
-        if (!run || didDrag) return; // Don't fire if already dragging.
-        const card = run.deck.hand.find(c => c.uuid === uuid);
-        if (card) {
-          const pStats = run.player.stats || {};
-          this.showHandCardPopup(card, pStats);
-        }
-      }, 1000);
-
-      // Cards that need manual targeting can be dragged.
-       const card = run?.deck?.hand?.find(c => c.uuid === uuid);
-      if (!card) { dragTypeAllowed = false; return; }
-      const tm = card.targetMode || '';
-      dragTypeAllowed = tm.includes('target') || tm.includes('auto') || card.type === 'attack' || card.type === 'attack-all';
-      const touch = e.touches ? e.touches[0] : e;
-
-      setTimeout(() => {
-        if (!dragTypeAllowed) return;
-        // If user didn't move far enough, this will still create clone after 150ms.
-        // We'll treat that as drag attempt.
-        dragClone = cardEl.cloneNode(true);
-        dragClone.style.position = 'fixed';
-        dragClone.style.zIndex = '200';
-        dragClone.style.width = '72px';
-        dragClone.style.height = '100px';
-        dragClone.style.left = `${touch.clientX - 36}px`;
-        dragClone.style.top = `${touch.clientY - 50}px`;
-        dragClone.style.pointerEvents = 'none';
-        dragClone.style.transform = 'scale(1.1) rotate(-3deg)';
-        dragClone.style.boxShadow = '0 12px 35px rgba(0,0,0,0.6)';
-        document.body.appendChild(dragClone);
-      }, 150);
-    };
-
-    const handleMove = (e) => {
-      // Cancel long-press timer on movement.
-      if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
-      if (!dragClone) return;
-      e.preventDefault();
-      didDrag = true;
-      const touch = e.touches ? e.touches[0] : e;
-      dragClone.style.left = `${touch.clientX - 36}px`;
-      dragClone.style.top = `${touch.clientY - 50}px`;
-
-      // Mark so click handler won't trigger.
-      // (We can't access closure var directly from here reliably across edits,
-      // so we just flip a DOM flag.)
-      handEl.dataset.wasDragging = '1';
-    };
-
-    const handleEnd = (e) => {
-      // Cancel long-press timer on release.
-      if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
-      if (!dragCard || !dragClone) { dragCard = null; return; }
-
-      const wasDrag = didDrag;
-      const touch = e.changedTouches ? e.changedTouches[0] : e;
-
-      dragClone.style.display = 'none';
-      const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-      dragClone.style.display = '';
-
-      const targetEl = elemBelow?.closest('.dungeon-card.enemy-card');
-      if (targetEl && dragTypeAllowed && wasDrag) {
-        const row = parseInt(targetEl.dataset.row);
-        const col = parseInt(targetEl.dataset.col);
-        this.playCardOnTarget(dragCard.dataset.uuid, row, col);
-      }
-
-      dragClone.remove();
-      dragCard = null;
-      dragClone = null;
-
-      // Reset for click handler
-      didDrag = false;
-      dragTypeAllowed = false;
-
-      handEl.dataset.wasDragging = '0';
-    };
-
-    handEl.addEventListener('mousedown', handleStart);
-    document.addEventListener('mousemove', handleMove);
-    document.addEventListener('mouseup', handleEnd);
-    handEl.addEventListener('touchstart', handleStart, { passive: true });
-    document.addEventListener('touchmove', handleMove, { passive: false });
-    document.addEventListener('touchend', handleEnd);
   },
 
   // ===== DUNGEON =====
@@ -419,6 +433,32 @@ const Game = {
   },
 
   onDungeonCardClick(row, col) {
+    // Pending target (tap→multi-enemy race condition fix) — play immediately
+    if (this._pendingTargetUuid) {
+      const run = this.state.run;
+      if (run) {
+        const cell = run.dungeon.grid.find(c => c.row === row && c.col === col);
+        if (cell?.card.revealed && cell.card.type === DUNGEON_TEMPLATES.enemy && !cell.card.defeated) {
+          this.playCardOnTarget(this._pendingTargetUuid, row, col);
+          delete this._pendingTargetUuid;
+          return;
+        }
+      }
+    }
+
+    // Targeting mode — select enemy to play card on
+    if (this._targetingMode) {
+      const run = this.state.run;
+      if (run) {
+        const cell = run.dungeon.grid.find(c => c.row === row && c.col === col);
+        if (cell?.card.revealed && cell.card.type === DUNGEON_TEMPLATES.enemy && !cell.card.defeated) {
+          this.playCardOnTarget(this._contextUuid, row, col);
+        }
+      }
+      this.exitTargetingMode();
+      return;
+    }
+
     const run = this.state.run;
     if (!run || this.state.screen !== 'dungeon') return;
 
@@ -517,51 +557,6 @@ const Game = {
     this.advanceWorldTick();
   },
 
-  onHandCardClick(uuid) {
-    const run = this.state.run;
-    if (!run) return;
-
-    const card = run.deck.hand.find(c => c.uuid === uuid);
-    if (!card) return;
-
-    if (this.selectedHandCard === uuid) {
-      this.selectedHandCard = null;
-      HandUI.selectCard(null);
-      return;
-    }
-
-    this.selectedHandCard = uuid;
-    HandUI.selectCard(uuid);
-
-    const tm = card.targetMode || (card.type === 'attack-all' ? 'auto-enemy' : null) || (card.type === 'attack' ? 'auto-enemy' : null);
-
-    if (tm === 'auto-enemy') {
-      // Auto-target first alive enemy.
-      const enemyCell = run.dungeon.grid.find(
-        c => c.revealed && c.card.type === DUNGEON_TEMPLATES.enemy && !c.card.defeated
-      );
-      if (enemyCell) {
-        this.playCardOnTarget(uuid, enemyCell.row, enemyCell.col);
-      }
-    } else if (tm === 'self' || card.type === 'item') {
-      // No targeting needed: armor/energy/buffs/items.
-      this.playCardOnTarget(uuid, null, null);
-    } else if (tm === 'target-enemy' || tm === 'target-cell') {
-      // Requires manual targeting via drag/drop — do nothing on click.
-    } else {
-      // Fallback: attack-like cards auto-target enemy.
-      const isAttackLike = card.effects?.some(e => e.action === 'damage' || e.action === 'damage_all');
-      if (isAttackLike) {
-        const enemyCell = run.dungeon.grid.find(
-          c => c.revealed && c.card.type === DUNGEON_TEMPLATES.enemy && !c.card.defeated
-        );
-        if (enemyCell) this.playCardOnTarget(uuid, enemyCell.row, enemyCell.col);
-      } else {
-        this.playCardOnTarget(uuid, null, null);
-      }
-    }
-  },
-
    playCardOnTarget(uuid, targetRow, targetCol) {
     const run = this.state.run;
     const card = run.deck.hand.find(c => c.uuid === uuid);
@@ -627,6 +622,183 @@ const Game = {
     if (!this.state.isDead() && this.allEnemiesDefeated()) {
       this.onAllEnemiesDefeated();
     }
+  },
+
+  // ===== HAND CONTEXT MENU =====
+  showHandContext(uuid) {
+    const run = this.state.run;
+    if (!run) return;
+    const card = run.deck.hand.find(c => c.uuid === uuid);
+    if (!card) return;
+
+    this._contextUuid = uuid;
+
+    // Translate name
+    let name = card.name;
+    if (card.id) {
+      name = t(`card.${card.id}.name`, card.name);
+    } else if (card.type === 'item' && card.template) {
+      name = t(`item.${card.template}.name`, card.name);
+    }
+
+    const popup = document.getElementById('hand-context-popup');
+    document.getElementById('ctx-sprite').textContent = card.sprite;
+    document.getElementById('ctx-name').textContent = name;
+    document.getElementById('ctx-cost').textContent = `Cost: ${card.cost}`;
+    popup.classList.remove('hidden');
+
+    // Hide if unplayable (not enough stamina)
+    const useBtn = document.getElementById('btn-ctx-use');
+    useBtn.disabled = run.player.stamina < card.cost;
+    useBtn.style.opacity = useBtn.disabled ? '0.4' : '1';
+  },
+
+  hideHandContext() {
+    document.getElementById('hand-context-popup').classList.add('hidden');
+    this.exitTargetingMode();
+    this._contextUuid = null;
+  },
+
+  onCtxUse() {
+    const run = this.state.run;
+    if (!run) return;
+    const uuid = this._contextUuid;
+    const card = run.deck.hand.find(c => c.uuid === uuid);
+    if (!card) return;
+
+    this.hideHandContext();
+
+    const tm = card.targetMode || '';
+    const isAttackLike = card.effects?.some(e => e.action === 'damage' || e.action === 'damage_all');
+
+    // Self/item cards — play immediately
+    if (tm === 'self' || card.type === 'item') {
+      this.playCardOnTarget(uuid, null, null);
+      return;
+    }
+
+    // Count alive revealed enemies
+    const aliveEnemies = run.dungeon.grid.filter(
+      c => c.revealed && c.card.type === DUNGEON_TEMPLATES.enemy && !c.card.defeated
+    );
+
+    // Auto-target or attack cards — auto-play only if exactly 1 enemy; else targeting mode
+    if (tm.includes('auto') || card.type === 'attack' || card.type === 'attack-all' || isAttackLike) {
+      if (aliveEnemies.length === 1) {
+        this.playCardOnTarget(uuid, aliveEnemies[0].row, aliveEnemies[0].col);
+        return;
+      }
+      // Multiple enemies — enter targeting mode
+      if (aliveEnemies.length > 1) {
+        this._contextUuid = uuid;
+        this.enterTargetingMode();
+        return;
+      }
+    }
+
+    // Target-enemy / target-cell — enter targeting mode
+    if (tm.includes('target') || tm.includes('manual')) {
+      this._contextUuid = uuid; // restore for targeting callback
+      this.enterTargetingMode();
+      return;
+    }
+
+    // Fallback: auto-target single enemy, else self
+    if (aliveEnemies.length === 1) {
+      this.playCardOnTarget(uuid, aliveEnemies[0].row, aliveEnemies[0].col);
+    } else if (aliveEnemies.length > 1) {
+      this._contextUuid = uuid;
+      this.enterTargetingMode();
+    } else {
+      this.playCardOnTarget(uuid, null, null);
+    }
+  },
+
+  onCtxInfo() {
+    const run = this.state.run;
+    if (!run) return;
+    const card = run.deck.hand.find(c => c.uuid === this._contextUuid);
+    if (!card) return;
+    const pStats = run.player.stats || {};
+    this.showHandCardPopup(card, pStats);
+  },
+
+  enterTargetingMode() {
+    this._targetingMode = true;
+    // Highlight targetable enemies on grid
+    document.querySelectorAll('.dungeon-card.enemy-card').forEach(el => {
+      const row = parseInt(el.dataset.row);
+      const col = parseInt(el.dataset.col);
+      const cell = this.state.run.dungeon.grid.find(c => c.row === row && c.col === col);
+      if (cell?.card.revealed && !cell.card.defeated) {
+        el.classList.add('targetable');
+      }
+    });
+  },
+
+  exitTargetingMode() {
+    this._targetingMode = false;
+    document.querySelectorAll('.dungeon-card.targetable').forEach(el => {
+      el.classList.remove('targetable');
+    });
+  },
+
+  enterTargetingModeFromDrag(uuid) {
+    const run = this.state.run;
+    if (!run) return;
+    const card = run.deck.hand.find(c => c.uuid === uuid);
+    if (!card) return;
+
+    const aliveEnemies = run.dungeon.grid.filter(
+      c => c.revealed && c.card.type === DUNGEON_TEMPLATES.enemy && !c.card.defeated
+    );
+
+    // Single enemy — auto-play
+    if (aliveEnemies.length === 1) {
+      this.playCardOnTarget(uuid, aliveEnemies[0].row, aliveEnemies[0].col);
+      return;
+    }
+
+    // Multiple enemies — enter targeting mode, tap to select
+    this._contextUuid = uuid;
+    this.enterTargetingMode();
+  },
+
+  playCardFromTap(uuid) {
+    const run = this.state.run;
+    if (!run) return;
+    const card = run.deck.hand.find(c => c.uuid === uuid);
+    if (!card) return;
+
+    // Self/item cards — play immediately
+    if (card.targetMode === 'self' || card.type === 'item') {
+      this.playCardOnTarget(uuid, null, null);
+      return;
+    }
+
+    const aliveEnemies = run.dungeon.grid.filter(
+      c => c.revealed && c.card.type === DUNGEON_TEMPLATES.enemy && !c.card.defeated
+    );
+
+    // Single enemy — auto-play
+    if (aliveEnemies.length === 1) {
+      this.playCardOnTarget(uuid, aliveEnemies[0].row, aliveEnemies[0].col);
+      return;
+    }
+
+    // Multiple enemies — set pending target so grid tap can catch it immediately
+    if (aliveEnemies.length > 1) {
+      this._pendingTargetUuid = uuid;
+      setTimeout(() => {
+        delete this._pendingTargetUuid;
+        this._contextUuid = uuid;
+        this.enterTargetingMode();
+      }, 50);
+      return;
+    }
+
+    // No enemies — try self
+    this.playCardOnTarget(uuid, null, null);
   },
 
   useDungeonItemCard(itemCard) {
@@ -844,8 +1016,11 @@ const Game = {
     document.getElementById('hand-popup-name').textContent = name;
     document.getElementById('hand-popup-desc').textContent = desc;
 
-    // Card type label.
-    const typeLabels = { attack: 'Атака', 'attack-all': 'AOE Атака', armor: 'Броня', heal: 'Лечение', buff: 'Бафф', energy: 'Стамина' };
+    // Card type label (i18n-aware).
+    const lang2 = getLanguage();
+    const typeLabelsEn = { attack: 'Attack', 'attack-all': 'AOE Attack', armor: 'Armor', heal: 'Heal', buff: 'Buff', energy: 'Stamina' };
+    const typeLabelsRu = { attack: 'Атака', 'attack-all': 'AOE Атака', armor: 'Броня', heal: 'Лечение', buff: 'Бафф', energy: 'Стамина' };
+    const typeLabels = lang2 === 'ru' ? typeLabelsRu : typeLabelsEn;
     document.getElementById('hand-popup-type').textContent = `${typeLabels[card.type] || card.type} | Cost: ${card.cost}`;
 
     // Stat requirements + mastery calculation.
@@ -853,13 +1028,15 @@ const Game = {
     let masteryHtml = '';
 
     if (card.mainStat) {
-      const statLabels = { STR: 'Сила', AGI: 'Ловкость', INT: 'Интеллект', WIL: 'Воля', VIT: 'Выносливость' };
+      const statLabelsEn = { STR: 'STR', AGI: 'AGI', INT: 'INT', WIL: 'WIL', VIT: 'VIT' };
+      const statLabelsRu = { STR: 'Сила', AGI: 'Ловкость', INT: 'Интеллект', WIL: 'Воля', VIT: 'Выносливость' };
+      const sLabels = lang2 === 'ru' ? statLabelsRu : statLabelsEn;
       const statKey = STAT_MAP[card.mainStat];
       const playerVal = pStats[statKey] || 0;
       const req = card.requiredStat || 0;
       const met = playerVal >= req;
       const color = met ? '#4a7c59' : '#c0392b';
-      statReqHtml = `<span style="color:${color}">${card.mainStat}: ${playerVal}/${req}</span>`;
+      statReqHtml = `<span style="color:${color}">${sLabels[card.mainStat]}: ${playerVal}/${req}</span>`;
 
       // Mastery calculation.
       const effectiveStat = CombatEngine.getEffectiveStat(card, pStats);
@@ -870,17 +1047,20 @@ const Game = {
 
       const masteryPct = Math.round(mastery * 100);
       const masteryColor = mastery >= 1.0 ? '#4a7c59' : (mastery >= 0.6 ? '#c9a84c' : '#c0392b');
-      masteryHtml = `Mastery: ${masteryPct}% | Дамедж: ${total}`;
+      const dmgLabel = lang2 === 'ru' ? `Дамедж: ${total}` : `Damage: ${total}`;
+      masteryHtml = `Mastery: ${masteryPct}% | ${dmgLabel}`;
       if (bonus > 0) masteryHtml += ` +${bonus.toFixed(1)} bonus`;
 
     } else if (card.statWeights) {
-      const statLabels = { STR: 'Сила', AGI: 'Ловкость', INT: 'Интеллект', WIL: 'Воля', VIT: 'Выносливость' };
-      const STAT_MAP = { STR: 'strength', AGI: 'agility', INT: 'intelligence', WIL: 'will', VIT: 'vitality' };
+      const statLabelsEn = { STR: 'STR', AGI: 'AGI', INT: 'INT', WIL: 'WIL', VIT: 'VIT' };
+      const statLabelsRu = { STR: 'Сила', AGI: 'Ловкость', INT: 'Интеллект', WIL: 'Воля', VIT: 'Выносливость' };
+      const sLabels = lang2 === 'ru' ? statLabelsRu : statLabelsEn;
+      const sMap = { STR: 'strength', AGI: 'agility', INT: 'intelligence', WIL: 'will', VIT: 'vitality' };
       let parts = [];
       for (const [stat, weight] of Object.entries(card.statWeights)) {
-        const playerVal = pStats[STAT_MAP[stat]] || 0;
+        const playerVal = pStats[sMap[stat]] || 0;
         const pct = Math.round(weight * 100);
-        parts.push(`<span>${stat}${pct}%: ${playerVal}</span>`);
+        parts.push(`<span>${sLabels[stat]}${pct}%: ${playerVal}</span>`);
       }
       statReqHtml = parts.join(' | ');
 
@@ -894,12 +1074,14 @@ const Game = {
 
       const masteryPct = Math.round(mastery * 100);
       const masteryColor = mastery >= 1.0 ? '#4a7c59' : (mastery >= 0.6 ? '#c9a84c' : '#c0392b');
-      masteryHtml = `<span style="color:${masteryColor}">Effective: ${effectiveStat.toFixed(1)} | Mastery: ${masteryPct}% | Дамедж: ${total}</span>`;
+      const dmgLabel2 = lang2 === 'ru' ? `Дамедж: ${total}` : `Damage: ${total}`;
+      masteryHtml = `<span style="color:${masteryColor}">Effective: ${effectiveStat.toFixed(1)} | Mastery: ${masteryPct}% | ${dmgLabel2}</span>`;
       if (bonus > 0) masteryHtml += ` +${bonus.toFixed(1)} bonus`;
 
     } else {
       // No stat requirements.
-      statReqHtml = '<span style="color:#666">Нет требований к статам</span>';
+      const noReq = lang2 === 'ru' ? 'Нет требований к статам' : 'No stat requirements';
+      statReqHtml = `<span style="color:#666">${noReq}</span>`;
       masteryHtml = '';
     }
 
@@ -1114,32 +1296,6 @@ const Game = {
         if (buffs[key].ticks <= 0) delete buffs[key];
       }
     }
-  },
-
-  // Legacy: kept for compatibility, but enemyAITick handles attacks now.
-  enemiesAttack() {
-    const run = this.state.run;
-    const attacks = DungeonEngine.allEnemiesAttack(run.dungeon, run);
-    if (attacks.length === 0) return;
-
-    const validAttacks = [];
-    for (const attack of attacks) {
-      const hasNullify = attack.cell.card.debuffs?.some(d => d.type === 'nullify' && d.ticks > 0);
-      if (!hasNullify) {
-        validAttacks.push(attack);
-      }
-    }
-
-    if (validAttacks.length === 0) return;
-    this.audio.playHit();
-
-    for (const attack of validAttacks) {
-      const result = this.state.takeDamage(attack.damage);
-      GridUI.showDamage(attack.cell, result.damage, 'damage');
-      GridUI.animateHit(attack.cell);
-    }
-
-    HUD.update(this.state);
   },
 
   processDebuffTicks() {
@@ -1554,7 +1710,8 @@ const Game = {
   },
 
   onNewGameConfirm() {
-    localStorage.clear();
+    // Only remove game save data, preserve language and PWA version.
+    localStorage.removeItem('patientRogue_save');
     location.reload();
   },
 

@@ -11,6 +11,7 @@
   --accent-blue: #5b7fa5;
   --border-light: #e8e4dc;
   --border-dark: #2a2a2a;
+  --accent-purple: #7b3a9e;
   --card-size: 80px;
   --card-gap: 6px;
 }
@@ -759,6 +760,51 @@ html, body {
 .popup-btn.remove { background: var(--accent-red); color: white; border-color: #a02020; }
 .popup-btn.merge { background: var(--accent-purple); color: white; border-color: #7b3a9e; }
 .popup-btn.close { background: var(--bg-panel); color: var(--text-primary); border-color: var(--border-dark); }
+.popup-compact { min-width: 160px; max-width: 240px; padding: 14px; border-color: var(--accent-gold); }
+
+/* Targeting mode — corner brackets on target (like reference screenshot) */
+.dungeon-card.enemy-card.targetable {
+  border-color: transparent !important;
+  cursor: crosshair !important;
+}
+/* Top-left bracket */
+.dungeon-card.enemy-card.targetable::before {
+  content: '';
+  position: absolute;
+  top: -4px; left: -4px;
+  width: 14px; height: 14px;
+  border-top: 3px solid #fff;
+  border-left: 3px solid #fff;
+  z-index: 15;
+  filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
+}
+/* Top-right bracket */
+.dungeon-card.enemy-card.targetable::after {
+  content: '';
+  position: absolute;
+  top: -4px; right: -4px;
+  width: 14px; height: 14px;
+  border-top: 3px solid #fff;
+  border-right: 3px solid #fff;
+  z-index: 15;
+  filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
+}
+/* Bottom brackets via wrapper pseudo — use box-shadow trick */
+.dungeon-card.enemy-card.targetable {
+  box-shadow: inset 0 0 0 0 transparent !important;
+}
+
+/* Target arrow from card to enemy (dashed white line) — controlled by JS */
+.card-target-arrow {
+  position: fixed;
+  z-index: 310;
+  width: 3px;
+  background: repeating-linear-gradient(to top, #fff 0px, #fff 8px, transparent 8px, transparent 14px);
+  pointer-events: none;
+  border-radius: 2px;
+  opacity: 0.7;
+  filter: drop-shadow(0 0 4px rgba(255,255,255,0.5));
+}
 
 /* ===== UPDATE BANNER ===== */
 .update-banner {

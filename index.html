@@ -232,7 +232,24 @@
       </div>
     </div>
 
-    <!-- Hand card stat info popup (long press on hand card) -->
+    <!-- Hand card context menu (tap on hand card) -->
+    <div id="hand-context-popup" class="card-popup hidden">
+      <div class="popup-content popup-compact">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span id="ctx-sprite" style="font-size:24px"></span>
+          <div>
+            <div class="popup-name" id="ctx-name" style="font-size:13px"></div>
+            <div style="font-size:10px;color:#888" id="ctx-cost"></div>
+          </div>
+        </div>
+        <div class="popup-actions">
+          <button class="popup-btn add" id="btn-ctx-use" data-i18n="cardctx.use"></button>
+          <button class="popup-btn close" id="btn-ctx-info" data-i18n="cardctx.info"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hand card stat info popup -->
     <div id="hand-card-popup" class="card-popup hidden">
       <div class="popup-content">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">

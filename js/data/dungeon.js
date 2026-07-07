@@ -94,30 +94,10 @@ export function generateDungeon(floor, roomIndex = 0) {
     }
   }
 
-  // Guarantee one exit card per room/dungeon instance.
-  // Place first reveal at a random edge position
-  const startPositions = [
-    { row: 0, col: 1 }, { row: 0, col: 2 },
-    { row: 1, col: 0 }, { row: 1, col: 3 }
-  ];
-  const startPos = startPositions[Math.floor(Math.random() * startPositions.length)];
-
-  const isAdjacent = (a, b) => {
-    const dr = Math.abs(a.row - b.row);
-    const dc = Math.abs(a.col - b.col);
-    return (dr + dc) === 1;
-  };
-
-  const exitCandidates = grid.filter(c =>
-    c.card.type === DUNGEON_TEMPLATES.empty &&
-    !isAdjacent(c, startPos) &&
-    !(c.row === startPos.row && c.col === startPos.col)
-  );
-  const exitCell = exitCandidates.length
-    ? exitCandidates[Math.floor(Math.random() * exitCandidates.length)]
-    : grid.find(c => c.card.type === DUNGEON_TEMPLATES.empty);
-
-  if (exitCell) {
+  // Guarantee one exit card per room — placed on random empty cell.
+  const emptyCells = grid.filter(c => c.card.type === DUNGEON_TEMPLATES.empty);
+  if (emptyCells.length > 0) {
+    const exitCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
     exitCell.card = {
       type: DUNGEON_TEMPLATES.exit,
       template: 'exit',
@@ -131,7 +111,6 @@ export function generateDungeon(floor, roomIndex = 0) {
     grid,
     cols,
     rows,
-    startPos,
     revealedCount: 0,
     enemiesSlain: 0
   };

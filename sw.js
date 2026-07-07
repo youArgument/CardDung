@@ -1,10 +1,33 @@
-const CACHE_NAME = "patient-rogue-v8";
+const CACHE_NAME = "patient-rogue-v9";
 
 const ASSETS = [
   "./",
   "./manifest.json",
   "./css/style.css",
-  "./js/main.js"
+  "./VERSION",
+  "./js/main.js",
+  "./js/engine/card.js",
+  "./js/engine/combat.js",
+  "./js/engine/deck.js",
+  "./js/engine/dungeon.js",
+  "./js/engine/hub.js",
+  "./js/engine/state.js",
+  "./js/engine/worldmap.js",
+  "./js/data/biomes.js",
+  "./js/data/cards.js",
+  "./js/data/classes.js",
+  "./js/data/dungeon.js",
+  "./js/data/enemies.js",
+  "./js/data/poi.js",
+  "./js/data/upgrades.js",
+  "./js/system/audio.js",
+  "./js/system/i18n.js",
+  "./js/system/save.js",
+  "./js/ui/grid.js",
+  "./js/ui/hand.js",
+  "./js/ui/hub.js",
+  "./js/ui/hud.js",
+  "./js/ui/worldmap.js"
 ];
 
 self.addEventListener("install", (event) => {

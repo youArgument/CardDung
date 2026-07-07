@@ -351,9 +351,9 @@ export class HubUI {
     actions.innerHTML = '';
 
     if (source === 'deck') {
-      // Check if can merge with another identical card
+      // Check if can merge with another identical card (normalize merged suffix)
       const state = this.game.state;
-      const baseId = cardId;
+      const baseId = cardId.replace('+', '');
       const otherIndex = state.activeDeck.findIndex((id, i) => i !== deckIndex && id.replace('+', '') === baseId);
 
       if (otherIndex !== -1) {
