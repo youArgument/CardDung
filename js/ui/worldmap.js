@@ -25,6 +25,9 @@ const FOG_EXPLORED = 'rgba(2,3,5,0.65)';
 const ANGLE_STEP   = Math.PI / 180 * 60;
 const HEX_ANGLES   = [0, 1, 2, 3, 4, 5].map(i => ANGLE_STEP * i - Math.PI / 6);
 
+// ── Pre-computed hex vertex offsets (unit radius) ────────────────────────────
+const HEX_VERTICES = HEX_ANGLES.map(a => ({ x: Math.cos(a), y: Math.sin(a) }));
+
 /* ------------------------------------------------------------------ */
 /*  WorldMapUI — canvas-based hex grid with camera pan/zoom/tap-move  */
 /* ------------------------------------------------------------------ */
@@ -140,8 +143,23 @@ export class WorldMapUI {
   }
 
   _tick() {
+    // Lerp camera if animating (before render so position is current).
+    if (this._animating) {
+      const dx = this._tcx - this._cx;
+      const dy = this._tcy - this._cy;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
+        this._cx = this._tcx;
+        this._cy = this._tcy;
+        this._animating = false;
+      } else {
+        this._cx += dx * LERP_SPEED;
+        this._cy += dy * LERP_SPEED;
+      }
+    }
+
     this._render();
     this._dirty = false;
+
     // Keep loop alive while animating or pointer is down so there's no dead pause.
     if (this._animating || this._pointerDown) {
       this._rafId = requestAnimationFrame(() => this._tick());
@@ -187,11 +205,11 @@ export class WorldMapUI {
   /* ---------- drawing helpers ---------- */
 
   _drawHex(ctx, x, y, size, cell) {
-    // Outline.
+    // Outline (pre-computed vertices).
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
-      const a = HEX_ANGLES[i];
-      ctx.lineTo(x + size * Math.cos(a), y + size * Math.sin(a));
+      const v = HEX_VERTICES[i];
+      ctx.lineTo(x + size * v.x, y + size * v.y);
     }
     ctx.closePath();
 
@@ -305,31 +323,11 @@ export class WorldMapUI {
       return;
     }
 
-    this._startLerp();
+    this._animating = true;
+    this._requestFrame();
   }
 
   _animating = false;
-
-  _startLerp() {
-    if (this._animating) return;
-    this._animating = true;
-    const step = () => {
-      const dx = this._tcx - this._cx;
-      const dy = this._tcy - this._cy;
-      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
-        this._cx = this._tcx;
-        this._cy = this._tcy;
-        this._animating = false;
-        this._requestFrame();
-        return;
-      }
-      this._cx += dx * LERP_SPEED;
-      this._cy += dy * LERP_SPEED;
-      this._requestFrame();
-      requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }
 
   /* ---------- hex resolution ---------- */
 

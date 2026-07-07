@@ -137,11 +137,30 @@ export class WorldMap {
 
   // ─── Fog of War ──────────────────────────
 
-  /** Reveal hexes within `radius` of `pos`. */
+  /** Generate ring coords relative to an arbitrary center (cq, cr). */
+  _ringCoordsAt(cq, cr, ring) {
+    if (ring === 0) return [{ q: cq, r: cr }];
+    const coords = [];
+    // Start at east edge of ring (relative), then offset by center.
+    let q = cq + ring, r = cr - ring;
+    for (let dir = 0; dir < 6; dir++) {
+      const dq = HEX_DIRECTIONS[dir].q;
+      const dr = HEX_DIRECTIONS[dir].r;
+      for (let step = 0; step < ring; step++) {
+        coords.push({ q, r });
+        q += dq;
+        r += dr;
+      }
+    }
+    return coords;
+  }
+
+  /** Reveal hexes within `radius` of `pos` (ring-based — no full grid scan). */
   revealArea(pos, radius, mode = FOG.visible) {
-    for (const key in this.grid) {
-      const cell = this.grid[key];
-      if (hexDist(cell, pos) <= radius) {
+    for (let ring = 0; ring <= radius; ring++) {
+      for (const coord of this._ringCoordsAt(pos.q, pos.r, ring)) {
+        const cell = this.grid[hexKey(coord.q, coord.r)];
+        if (!cell) continue;
         if (mode === FOG.visible || cell.fog !== FOG.visible) {
           cell.fog = mode;
         }
@@ -154,12 +173,12 @@ export class WorldMap {
     this.revealArea(pos, radius, FOG.visible);
   }
 
-  /** Update fog after player moves from oldPos → newPos. */
+  /** Update fog after player moves from oldPos → newPos (ring-based). */
   updateFog(oldPos, newPos) {
-    // Old area → explored (any cell within distance 1 of old position).
-    for (const key in this.grid) {
-      const cell = this.grid[key];
-      if (hexDist(cell, oldPos) <= 1 && cell.fog === FOG.visible) {
+    // Old area: dim visible cells within distance 1 of old position → explored.
+    for (const coord of this._ringCoordsAt(oldPos.q, oldPos.r, 1)) {
+      const cell = this.grid[hexKey(coord.q, coord.r)];
+      if (cell && cell.fog === FOG.visible) {
         cell.fog = FOG.explored;
       }
     }
