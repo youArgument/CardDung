@@ -119,7 +119,7 @@ export class WorldMap {
     const center = this.grid[hexKey(0, 0)];
     if (center && center.walkable && !center.collision && !this._getObjectAt(0, 0)) {
       this.playerPos = { q: 0, r: 0 };
-      this.revealAround(this.playerPos, 2);
+      this.revealAround(this.playerPos, 3);
       return;
     }
     // Search outward.
@@ -128,7 +128,7 @@ export class WorldMap {
         const cell = this.grid[hexKey(q, r)];
         if (cell && cell.walkable && !cell.collision && !this._getObjectAt(q, r)) {
           this.playerPos = { q, r };
-          this.revealAround(this.playerPos, 2);
+          this.revealAround(this.playerPos, 3);
           return;
         }
       }
@@ -175,15 +175,17 @@ export class WorldMap {
 
   /** Update fog after player moves from oldPos → newPos (ring-based). */
   updateFog(oldPos, newPos) {
-    // Old area: dim visible cells within distance 1 of old position → explored.
-    for (const coord of this._ringCoordsAt(oldPos.q, oldPos.r, 1)) {
-      const cell = this.grid[hexKey(coord.q, coord.r)];
-      if (cell && cell.fog === FOG.visible) {
-        cell.fog = FOG.explored;
+    // Old area: dim visible cells within radius 2 of old position → explored.
+    for (let ring = 0; ring <= 2; ring++) {
+      for (const coord of this._ringCoordsAt(oldPos.q, oldPos.r, ring)) {
+        const cell = this.grid[hexKey(coord.q, coord.r)];
+        if (cell && cell.fog === FOG.visible) {
+          cell.fog = FOG.explored;
+        }
       }
     }
-    // New area → visible.
-    this.revealArea(newPos, 1, FOG.visible);
+    // New area → visible (radius 2 for better situational awareness).
+    this.revealArea(newPos, 2, FOG.visible);
   }
 
   // ─── Movement ─────────────────────────────
@@ -322,7 +324,7 @@ export class WorldMap {
     map.playerPos = data.playerPos || { q: 0, r: 0 };
     map.teleportMode = false;
     map.activeGraceId = data.activeGraceId;
-    map.revealArea(map.playerPos, 1, FOG.visible);
+    map.revealArea(map.playerPos, 2, FOG.visible);
     return map;
   }
 }
