@@ -346,6 +346,7 @@ const Game = {
       this.worldMapUI._listeners = {};
     }
     this.worldMapUI = new WorldMapUI('worldmap-container', this.worldMap);
+    this.worldMapUI.activate();
 
     // Wire up events.
     this.worldMapUI.on('interact', (res) => this._onWorldInteract(res));

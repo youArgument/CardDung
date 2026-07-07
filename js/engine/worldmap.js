@@ -2,78 +2,110 @@ import { BIOME_TILES } from '../data/biomes.js';
 import { POI_LIST, placePOIs } from '../data/poi.js';
 
 export const FOG = { hidden: 'hidden', visible: 'visible', explored: 'explored' };
-export const DIRECTIONS = [
-  { r: -1, c: 0 }, // up
-  { r: 1, c: 0 },  // down
-  { r: 0, c: -1 }, // left
-  { r: 0, c: 1 },  // right
+
+// 6 hex directions (pointy-topped, axial coords).
+export const HEX_DIRECTIONS = [
+  { q: 1, r: -1 }, { q: 1, r: 0 },
+  { q: 0, r: 1 },  { q: -1, r: 1 },
+  { q: -1, r: 0 }, { q: 0, r: -1 },
 ];
 
+/** Hex distance in axial coordinates. */
+export function hexDist(a, b) {
+  return (Math.abs(a.q - b.q) + Math.abs(a.q + a.r - b.q - b.r) + Math.abs(a.r - b.r)) / 2;
+}
+
+/** Check if (q,r) is within world radius. */
+export function inWorld(q, r, radius) {
+  return hexDist({ q: 0, r: 0 }, { q, r }) <= radius;
+}
+
+/** Make a sparse-grid key from axial coords. */
+export function hexKey(q, r) { return `${q},${r}`; }
+
+/** Parse "q,r" string back to {q, r}. */
+export function parseHexKey(key) {
+  const [q, r] = key.split(',').map(Number);
+  return { q, r };
+}
+
+// ─── Tile Type Helpers ──────────────────────
+
+function isWalkable(tileType) {
+  const t = BIOME_TILES[tileType];
+  return t?.walkable ?? true;
+}
+
+function hasCollision(tileType) {
+  const t = BIOME_TILES[tileType];
+  return t?.collision ?? false;
+}
+
+// ─── World Map Class ────────────────────────
+
 export class WorldMap {
-  constructor(size = 30) {
-    this.size = size;
-    this.grid = [];
-    this.objects = new Map(); // id -> WorldObject overlay
-    this.playerPos = { r: 0, c: 0 };
+  constructor(radius = 15) {
+    this.radius = radius;           // world radius (hex distance from center).
+    this.grid = {};                 // sparse: "q,r" → cell object.
+    this.objects = new Map();       // id → POI overlay.
+    this.playerPos = { q: 0, r: 0 };
     this.teleportMode = false;
     this.activeGraceId = null;
-    this._generateGrid();
+    this._generateWorld();
   }
 
-  // ─── Grid Generation ──────────────────────────────
+  // ─── World Generation ─────────────────────
 
-  _generateGrid() {
-    const size = this.size;
-    this.grid = [];
+  _generateWorld() {
+    const radius = this.radius;
 
-    for (let r = 0; r < size; r++) {
-      const row = [];
-      for (let c = 0; c < size; c++) {
-        const tile = this._pickTile(r, c);
-        row.push({
+    // Generate hex rings from center outward.
+    for (let ring = 0; ring <= radius; ring++) {
+      for (const { q, r } of this._ringCoords(ring)) {
+        const tileType = this._pickTile(q, r);
+        this.grid[hexKey(q, r)] = {
+          q,
           r,
-          c,
           biomeId: 'wind_plateau',
-          tileType: tile.type,
-          walkable: tile.walkable,
-          collision: tile.collision,
+          tileType,
+          walkable: isWalkable(tileType),
+          collision: hasCollision(tileType),
           fog: FOG.hidden,
-        });
+        };
       }
-      this.grid.push(row);
     }
 
     // Place POIs on walkable cells.
     placePOIs(this);
 
-    // Find spawn point (center-ish walkable cell).
-    const center = Math.floor(size / 2);
-    for (let radius = 0; radius < size; radius++) {
-      for (let dr = -radius; dr <= radius; dr++) {
-        for (let dc = -radius; dc <= radius; dc++) {
-          const nr = center + dr, nc = center + dc;
-          if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
-            const cell = this.grid[nr][nc];
-            if (cell.walkable && !cell.collision && !this._getObjectAt(nr, nc)) {
-              this.playerPos = { r: nr, c: nc };
-              this.revealAround(this.playerPos, 2);
-              return;
-            }
-          }
-        }
-      }
-    }
+    // Find spawn point at center (or nearest walkable).
+    this._findSpawn();
   }
 
-  _pickTile(r, c) {
-    // Simple noise-like generation for "Плато ветров".
-    const n = this._hash(r * 374761393 + c * 668265263);
-    const v = (n & 0xFFFF) / 0xFFFF;
+  /** Generate all hex coords for a given ring. */
+  _ringCoords(ring) {
+    if (ring === 0) return [{ q: 0, r: 0 }];
+    const coords = [];
+    // Start at east edge of ring.
+    let q = ring, r = -ring;
+    for (let dir = 0; dir < 6; dir++) {
+      const dq = HEX_DIRECTIONS[dir].q;
+      const dr = HEX_DIRECTIONS[dir].r;
+      for (let step = 0; step < ring; step++) {
+        coords.push({ q, r });
+        q += dq;
+        r += dr;
+      }
+    }
+    return coords;
+  }
 
-    if (v < 0.15) return BIOME_TILES.water;
-    if (v < 0.28) return BIOME_TILES.rock;
-    // Road cells near POIs will be set later by pathfinding, default to grass.
-    return BIOME_TILES.grass;
+  _pickTile(q, r) {
+    const n = this._hash(q * 374761393 + r * 668265263);
+    const v = (n & 0xFFFF) / 0xFFFF;
+    if (v < 0.15) return BIOME_TILES.water.type;
+    if (v < 0.28) return BIOME_TILES.rock.type;
+    return BIOME_TILES.grass.type;
   }
 
   _hash(x) {
@@ -82,17 +114,34 @@ export class WorldMap {
     return (x ^ (x >>> 16)) >>> 0;
   }
 
-  // ─── Fog of War ──────────────────────────────────
+  _findSpawn() {
+    // Center first.
+    const center = this.grid[hexKey(0, 0)];
+    if (center && center.walkable && !center.collision && !this._getObjectAt(0, 0)) {
+      this.playerPos = { q: 0, r: 0 };
+      this.revealAround(this.playerPos, 2);
+      return;
+    }
+    // Search outward.
+    for (let ring = 1; ring <= this.radius; ring++) {
+      for (const { q, r } of this._ringCoords(ring)) {
+        const cell = this.grid[hexKey(q, r)];
+        if (cell && cell.walkable && !cell.collision && !this._getObjectAt(q, r)) {
+          this.playerPos = { q, r };
+          this.revealAround(this.playerPos, 2);
+          return;
+        }
+      }
+    }
+  }
 
+  // ─── Fog of War ──────────────────────────
+
+  /** Reveal hexes within `radius` of `pos`. */
   revealArea(pos, radius, mode = FOG.visible) {
-    const size = this.size;
-    for (let dr = -radius; dr <= radius; dr++) {
-      for (let dc = -radius; dc <= radius; dc++) {
-        if (Math.abs(dr) + Math.abs(dc) > radius) continue;
-        const nr = pos.r + dr, nc = pos.c + dc;
-        if (nr < 0 || nr >= size || nc < 0 || nc >= size) continue;
-        const cell = this.grid[nr][nc];
-        // visible overrides explored, but nothing overrides hidden unless revealed.
+    for (const key in this.grid) {
+      const cell = this.grid[key];
+      if (hexDist(cell, pos) <= radius) {
         if (mode === FOG.visible || cell.fog !== FOG.visible) {
           cell.fog = mode;
         }
@@ -101,35 +150,28 @@ export class WorldMap {
   }
 
   revealAround(pos, radius = 1) {
-    // Old position cells become explored (if they were visible).
     this.revealArea(pos, radius, FOG.explored);
-    // New position gets full visibility.
     this.revealArea(pos, radius, FOG.visible);
   }
 
+  /** Update fog after player moves from oldPos → newPos. */
   updateFog(oldPos, newPos) {
-    // Mark old area as explored (not hidden, not visible).
-    for (let dr = -1; dr <= 1; dr++) {
-      for (let dc = -1; dc <= 1; dc++) {
-        if (Math.abs(dr) + Math.abs(dc) > 1) continue;
-        const nr = oldPos.r + dr, nc = oldPos.c + dc;
-        if (nr >= 0 && nr < this.size && nc >= 0 && nc < this.size) {
-          const cell = this.grid[nr][nc];
-          if (cell.fog === FOG.visible) cell.fog = FOG.explored;
-        }
+    // Old area → explored (any cell within distance 1 of old position).
+    for (const key in this.grid) {
+      const cell = this.grid[key];
+      if (hexDist(cell, oldPos) <= 1 && cell.fog === FOG.visible) {
+        cell.fog = FOG.explored;
       }
     }
-    // New area becomes visible.
+    // New area → visible.
     this.revealArea(newPos, 1, FOG.visible);
   }
 
-  // ─── Movement ─────────────────────────────────────
+  // ─── Movement ─────────────────────────────
 
   canMove(from, to) {
-    const dr = Math.abs(from.r - to.r);
-    const dc = Math.abs(from.c - to.c);
-    if (dr + dc !== 1) return false; // Only adjacent cells.
-    const cell = this._getCell(to);
+    if (hexDist(from, to) !== 1) return false;
+    const cell = this.grid[hexKey(to.q, to.r)];
     if (!cell) return false;
     return cell.walkable && !cell.collision;
   }
@@ -138,23 +180,21 @@ export class WorldMap {
     if (!this.canMove(this.playerPos, newPos)) return null;
     const oldPos = { ...this.playerPos };
     this.updateFog(oldPos, newPos);
-    this.playerPos = { r: newPos.r, c: newPos.c };
+    this.playerPos = { q: newPos.q, r: newPos.r };
 
     // Check for POI interaction on new cell.
-    const obj = this._getObjectAt(newPos.r, newPos.c);
+    const obj = this._getObjectAt(newPos.q, newPos.r);
     let interactResult = null;
-    if (obj) {
-      interactResult = this.interact(obj);
-    }
+    if (obj) interactResult = this.interact(obj);
 
     return { oldPos, newPos, object: interactResult };
   }
 
-  // ─── POI Interaction ──────────────────────────────
+  // ─── POI Interaction ──────────────────────
 
-  _getObjectAt(r, c) {
+  _getObjectAt(q, r) {
     for (const obj of this.objects.values()) {
-      if (obj.r === r && obj.c === c) return obj;
+      if (obj.q === q && obj.r === r) return obj;
     }
     return null;
   }
@@ -162,11 +202,12 @@ export class WorldMap {
   interact(obj) {
     switch (obj.type) {
       case 'grace':
-        if (!obj.isActive) {
+        const wasActive = obj.isActive;
+        if (!wasActive) {
           obj.isActive = true;
           this.activeGraceId = obj.id;
         }
-        return { type: 'grace', id: obj.id, name: obj.name, activated: !obj.isActive };
+        return { type: 'grace', id: obj.id, name: obj.name, activated: !wasActive };
 
       case 'chest':
         if (obj.opened) return null;
@@ -185,7 +226,7 @@ export class WorldMap {
     }
   }
 
-  // ─── Fast Travel (Teleport Mode) ──────────────────
+  // ─── Fast Travel (Teleport Mode) ──────────
 
   toggleTeleportMode() {
     this.teleportMode = !this.teleportMode;
@@ -196,48 +237,41 @@ export class WorldMap {
     const obj = this.objects.get(objId);
     if (!obj || obj.type !== 'grace' || !obj.isActive) return null;
     const oldPos = { ...this.playerPos };
-    this.playerPos = { r: obj.r, c: obj.c };
+    this.playerPos = { q: obj.q, r: obj.r };
     this.teleportMode = false;
     this.updateFog(oldPos, this.playerPos);
     return { oldPos, newPos: this.playerPos, graceId: obj.id };
   }
 
-  // ─── Cell Accessors ──────────────────────────────
+  // ─── Cell Accessors ──────────────────────
 
-  _getCell(pos) {
-    if (pos.r < 0 || pos.r >= this.size || pos.c < 0 || pos.c >= this.size) return null;
-    return this.grid[pos.r][pos.c];
+  getCell(q, r) {
+    const key = hexKey(q, r);
+    if (!inWorld(q, r, this.radius)) return null;
+    return this.grid[key] || null;
   }
 
-  getCell(r, c) {
-    return this._getCell({ r, c });
-  }
-
-  getObjectAt(r, c) {
-    return this._getObjectAt(r, c);
+  getObjectAt(q, r) {
+    return this._getObjectAt(q, r);
   }
 
   getObjectsInRadius(pos, radius = 1) {
     const result = [];
     for (const obj of this.objects.values()) {
-      if (Math.abs(obj.r - pos.r) + Math.abs(obj.c - pos.c) <= radius) {
-        result.push(obj);
-      }
+      if (hexDist(obj, pos) <= radius) result.push(obj);
     }
     return result;
   }
 
-  // ─── Serialization ────────────────────────────────
+  // ─── Serialization ────────────────────────
 
   serialize() {
     const exploredCells = [];
-    for (const row of this.grid) {
-      for (const cell of row) {
-        if (cell.fog === FOG.explored) exploredCells.push(`${cell.r},${cell.c}`);
-      }
+    for (const key in this.grid) {
+      if (this.grid[key].fog === FOG.explored) exploredCells.push(key);
     }
-
     return {
+      radius: this.radius,
       playerPos: { ...this.playerPos },
       teleportMode: this.teleportMode,
       activeGraceId: this.activeGraceId,
@@ -247,17 +281,14 @@ export class WorldMap {
   }
 
   static deserialize(data) {
-    const map = new WorldMap(30);
-    // Regenerate grid first (same seed would give same layout, but for now we regenerate).
+    const map = new WorldMap(data.radius ?? 15);
     // Restore explored cells.
     if (data.exploredCells) {
       for (const key of data.exploredCells) {
-        const [r, c] = key.split(',').map(Number);
-        const cell = map._getCell({ r, c });
+        const cell = map.grid[key];
         if (cell) cell.fog = FOG.explored;
       }
     }
-
     // Restore POI states.
     if (data.openedChests) {
       for (const id of data.openedChests) {
@@ -269,14 +300,10 @@ export class WorldMap {
       const grace = map.objects.get(data.activeGraceId);
       if (grace) grace.isActive = true;
     }
-
-    map.playerPos = data.playerPos || { r: 0, c: 0 };
+    map.playerPos = data.playerPos || { q: 0, r: 0 };
     map.teleportMode = false;
     map.activeGraceId = data.activeGraceId;
-
-    // Reveal around player.
     map.revealArea(map.playerPos, 1, FOG.visible);
-
     return map;
   }
 }

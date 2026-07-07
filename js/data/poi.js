@@ -1,3 +1,5 @@
+import { hexDist, hexKey } from '../engine/worldmap.js';
+
 // World Object types.
 export const POI_TYPES = {
   grace:          'grace',
@@ -37,46 +39,47 @@ export const POI_LIST = [
 
 // Place POIs on the world map grid.
 export function placePOIs(worldMap) {
-  const size = worldMap.size;
-  const center = Math.floor(size / 2);
-
-  // Define relative positions for each POI (relative to center).
+  // Define positions for each POI using axial hex coordinates (relative to center).
   const placements = [
-    { id: 'grace_spawn',     dr: 0,   dc: 0 },
-    { id: 'grace_crossroads', dr: -5, dc: -3 },
-    { id: 'grace_lake',      dr: 4,   dc: 6 },
-    { id: 'grace_hilltop',   dr: -7,  dc: 5 },
+    { id: 'grace_spawn',     dq: 0,   dr: 0 },
+    { id: 'grace_crossroads', dq: -5, dr: -3 },
+    { id: 'grace_lake',      dq: 4,   dr: 6 },
+    { id: 'grace_hilltop',   dq: -7,  dr: 5 },
 
-    { id: 'dungeon_crypt',   dr: -8,  dc: -7 },
-    { id: 'dungeon_ruins',   dr: 7,   dc: -6 },
+    { id: 'dungeon_crypt',   dq: -8,  dr: -7 },
+    { id: 'dungeon_ruins',   dq: 7,   dr: -6 },
 
-    { id: 'boss_wyrm',       dr: -10, dc: 2 },
+    { id: 'boss_wyrm',       dq: -10, dr: 2 },
 
-    { id: 'chest_1',         dr: -3,  dc: 4 },
-    { id: 'chest_2',         dr: 5,   dc: -4 },
-    { id: 'chest_3',         dr: -6,  dc: -8 },
+    { id: 'chest_1',         dq: -3,  dc: 4 },
+    { id: 'chest_2',         dq: 5,   dr: -4 },
+    { id: 'chest_3',         dq: -6,  dr: -8 },
   ];
 
   for (const p of placements) {
     const poi = POI_LIST.find(po => po.id === p.id);
     if (!poi) continue;
 
-    let r = center + p.dr, c = center + p.dc;
-    // Clamp to grid bounds.
-    r = Math.max(1, Math.min(size - 2, r));
-    c = Math.max(1, Math.min(size - 2, c));
+    let q = p.dq, r = p.dr ?? p.dc;
+    // Clamp to world radius.
+    if (hexDist({ q: 0, r: 0 }, { q, r }) > worldMap.radius) {
+      const scale = worldMap.radius / hexDist({ q: 0, r: 0 }, { q, r });
+      q = Math.round(q * scale);
+      r = Math.round(r * scale);
+    }
 
     // Find nearest walkable cell if this one is blocked.
-    if (!worldMap.getCell(r, c)?.walkable || worldMap.getCell(r, c)?.collision) {
-      const nearest = findNearestWalkable(worldMap, r, c);
-      if (nearest) { r = nearest.r; c = nearest.c; }
+    const cell = worldMap.getCell(q, r);
+    if (!cell?.walkable || cell?.collision) {
+      const nearest = findNearestWalkable(worldMap, q, r);
+      if (nearest) { q = nearest.q; r = nearest.r; }
     }
 
     // Create the world object.
     const obj = {
       ...poi,
+      q,
       r,
-      c,
       icon: POI_ICONS[poi.type] || '❓',
       opened: false,
     };
@@ -90,26 +93,23 @@ export function placePOIs(worldMap) {
     worldMap.objects.set(poi.id, obj);
 
     // Mark the cell as road for graces and key locations.
-    const cell = worldMap.getCell(r, c);
-    if (cell && poi.type !== 'chest') {
-      cell.tileType = 'road';
+    const finalCell = worldMap.getCell(q, r);
+    if (finalCell && poi.type !== 'chest') {
+      finalCell.tileType = 'road';
     }
   }
 }
 
-function findNearestWalkable(worldMap, r, c) {
-  const size = worldMap.size;
+function findNearestWalkable(worldMap, q, r) {
   for (let radius = 1; radius < 6; radius++) {
-    for (let dr = -radius; dr <= radius; dr++) {
-      for (let dc = -radius; dc <= radius; dc++) {
-        if (Math.abs(dr) + Math.abs(dc) !== radius) continue;
-        const nr = r + dr, nc = c + dc;
-        if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
-          const cell = worldMap.getCell(nr, nc);
-          if (cell?.walkable && !cell.collision) return { r: nr, c: nc };
-        }
+    const candidates = [];
+    for (const key in worldMap.grid) {
+      const cell = worldMap.grid[key];
+      if (hexDist(cell, { q, r }) === radius && cell.walkable && !cell.collision) {
+        candidates.push(cell);
       }
     }
+    if (candidates.length) return candidates[0];
   }
   return null;
 }
