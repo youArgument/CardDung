@@ -187,32 +187,41 @@ const Game = {
           const row = parseInt(el.dataset.row);
           const col = parseInt(el.dataset.col);
           const cell = run?.dungeon.grid.find(c => c.row === row && c.col === col);
-          if (cell?.card.revealed && !cell.card.defeated) el.classList.add('targetable');
+          if (cell?.revealed && !cell.card.defeated) el.classList.add('targetable');
           else el.classList.remove('targetable');
         });
 
-        // Arrow from card toward nearest enemy (find via DOM)
+        // Arrow originates from card and tip follows finger position.
+        // The enemy closest to the finger is highlighted as target.
+        const fingerX = touch.clientX;
+        const fingerY = touch.clientY;
+
+        // Find enemy closest to finger for targeting on release
         const targetableEls = document.querySelectorAll('.dungeon-card.enemy-card.targetable');
         let nearestEl = null, minDist = Infinity;
         for (const te of targetableEls) {
           const elRect = te.getBoundingClientRect();
-          const d = Math.hypot(elRect.left + elRect.width/2 - _dragState.rect.left, elRect.top - _dragState.rect.top);
+          const d = Math.hypot(elRect.left + elRect.width/2 - fingerX, elRect.top + elRect.height/2 - fingerY);
           if (d < minDist) { minDist = d; nearestEl = te; }
         }
-        if (nearestEl) {
-          const targetRect = nearestEl.getBoundingClientRect();
-          const tx = targetRect.left + targetRect.width / 2;
-          const ty = targetRect.top;
-          const cx = _dragState.rect.left + _dragState.rect.width / 2;
-          const cy = _dragState.rect.top - 10;
-          const angle = Math.atan2(ty - cy, tx - cx) * 180 / Math.PI;
-          const dist = Math.hypot(tx - cx, ty - cy);
-          _dragState.arrow.style.display = 'block';
-          _dragState.arrow.style.left = `${cx}px`;
-          _dragState.arrow.style.top = `${cy}px`;
-          _dragState.arrow.style.height = `${Math.max(dist * 0.7, 50)}px`;
-          _dragState.arrow.style.transform = `rotate(${angle}deg)`;
-        }
+
+        // Arrow: origin at card center, direction toward finger
+        const cx = _dragState.rect.left + _dragState.rect.width / 2;
+        const cy = _dragState.rect.top - 10;
+        // atan2 gives angle from horizontal X-axis (0°=right). The arrow div extends downward by default,
+        // so we subtract 90° to align the rotation with the target direction.
+        const angle = Math.atan2(fingerY - cy, fingerX - cx) * 180 / Math.PI - 90;
+        const distToFinger = Math.hypot(fingerX - cx, fingerY - cy);
+
+        _dragState.arrow.style.display = 'block';
+        _dragState.arrow.style.left = `${cx}px`;
+        _dragState.arrow.style.top = `${cy}px`;
+        _dragState.arrow.style.height = `${Math.max(distToFinger, 30)}px`;
+        _dragState.arrow.style.transformOrigin = '50% 0';
+        _dragState.arrow.style.transform = `rotate(${angle}deg)`;
+
+        // Store the targeted enemy for release handling
+        _dragState.targetedEnemy = nearestEl;
         _dragState.infoEl.style.display = 'none';
 
       } else if (dy > threshold) {
@@ -261,8 +270,16 @@ const Game = {
       _dragState.infoEl.remove();
 
       if (dy < -threshold) {
-        // Dragged UP — targeting
-        this.enterTargetingModeFromDrag(_dragState.uuid);
+        // Dragged UP — play card on the enemy closest to finger position
+        const targeted = _dragState.targetedEnemy;
+        if (targeted) {
+          const row = parseInt(targeted.dataset.row);
+          const col = parseInt(targeted.dataset.col);
+          this.playCardOnTarget(_dragState.uuid, row, col);
+        } else {
+          // No enemy in range — fall back to targeting mode
+          this.enterTargetingModeFromDrag(_dragState.uuid);
+        }
       } else if (Math.abs(dy) <= threshold) {
         // Tap — play card normally
         this.playCardFromTap(_dragState.uuid);
@@ -438,7 +455,7 @@ const Game = {
       const run = this.state.run;
       if (run) {
         const cell = run.dungeon.grid.find(c => c.row === row && c.col === col);
-        if (cell?.card.revealed && cell.card.type === DUNGEON_TEMPLATES.enemy && !cell.card.defeated) {
+        if (cell?.revealed && cell.card.type === DUNGEON_TEMPLATES.enemy && !cell.card.defeated) {
           this.playCardOnTarget(this._pendingTargetUuid, row, col);
           delete this._pendingTargetUuid;
           return;
@@ -451,7 +468,7 @@ const Game = {
       const run = this.state.run;
       if (run) {
         const cell = run.dungeon.grid.find(c => c.row === row && c.col === col);
-        if (cell?.card.revealed && cell.card.type === DUNGEON_TEMPLATES.enemy && !cell.card.defeated) {
+        if (cell?.revealed && cell.card.type === DUNGEON_TEMPLATES.enemy && !cell.card.defeated) {
           this.playCardOnTarget(this._contextUuid, row, col);
         }
       }
@@ -730,7 +747,7 @@ const Game = {
       const row = parseInt(el.dataset.row);
       const col = parseInt(el.dataset.col);
       const cell = this.state.run.dungeon.grid.find(c => c.row === row && c.col === col);
-      if (cell?.card.revealed && !cell.card.defeated) {
+      if (cell?.revealed && !cell.card.defeated) {
         el.classList.add('targetable');
       }
     });
