@@ -809,6 +809,40 @@ html, body {
   filter: drop-shadow(0 0 6px rgba(255,255,255,0.8)) drop-shadow(0 0 2px rgba(0,0,0,0.9));
 }
 
+/* Damage preview highlight on the targeted enemy */
+.dungeon-card.enemy-card.damage-preview-target {
+  box-shadow: 0 0 16px 4px rgba(255,60,60,0.7), inset 0 0 12px rgba(255,60,60,0.3) !important;
+  border-color: #ff4444 !important;
+}
+
+/* Damage preview tooltip near enemy */
+.damage-preview-tooltip {
+  position: fixed;
+  z-index: 320;
+  background: rgba(10,5,5,0.95);
+  border: 2px solid #ff4444;
+  border-radius: 8px;
+  padding: 6px 10px;
+  pointer-events: none;
+  font-size: 13px;
+  color: #fff;
+  white-space: nowrap;
+  filter: drop-shadow(0 0 6px rgba(255,0,0,0.6));
+}
+.damage-preview-tooltip .dmg-value {
+  color: #ff4444;
+  font-weight: bold;
+  font-size: 16px;
+}
+.damage-preview-tooltip .hp-remaining {
+  color: #8f8;
+  font-weight: bold;
+}
+.damage-preview-tooltip .hp-killed {
+  color: #f55;
+  font-weight: bold;
+}
+
 /* ===== UPDATE BANNER ===== */
 .update-banner {
   position: fixed;

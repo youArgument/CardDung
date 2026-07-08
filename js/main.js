@@ -160,13 +160,19 @@ const Game = {
       arrow.style.height = '0px';
       document.body.appendChild(arrow);
 
-      // Info overlay element
+      // Info overlay element (down drag)
       const infoEl = document.createElement('div');
       infoEl.className = 'card-drag-info';
       infoEl.style.cssText = 'position:fixed;z-index:290;background:rgba(15,15,25,0.95);border:2px solid #c9a84c;border-radius:8px;padding:10px 14px;pointer-events:none;font-size:12px;color:#ddd;text-align:center;display:none;max-width:200px';
       document.body.appendChild(infoEl);
 
-      _dragState = { uuid, cardEl, arrow, infoEl, rect, startX: touch.clientX, startY: touch.clientY };
+      // Damage preview tooltip (near targeted enemy on up drag)
+      const dmgTooltip = document.createElement('div');
+      dmgTooltip.className = 'damage-preview-tooltip';
+      dmgTooltip.style.display = 'none';
+      document.body.appendChild(dmgTooltip);
+
+      _dragState = { uuid, cardEl, arrow, infoEl, dmgTooltip, rect, startX: touch.clientX, startY: touch.clientY };
     };
 
     const moveCardDrag = (e) => {
@@ -205,6 +211,51 @@ const Game = {
           if (d < minDist) { minDist = d; nearestEl = te; }
         }
 
+        // Highlight targeted enemy and show damage preview tooltip
+        targetableEls.forEach(el => el.classList.remove('damage-preview-target'));
+        if (nearestEl) {
+          nearestEl.classList.add('damage-preview-target');
+          const row = parseInt(nearestEl.dataset.row);
+          const col = parseInt(nearestEl.dataset.col);
+          const cell = run?.dungeon.grid.find(c => c.row === row && c.col === col);
+          if (cell) {
+            const handCard = run.deck.hand.find(c => c.uuid === _dragState.uuid);
+            if (handCard) {
+              // Calculate expected damage
+              const pStats = run.player.stats || {};
+              let totalDmg = 0;
+              const dmgEffects = (handCard.effects || []).filter(efx => efx.action === 'damage' || efx.action === 'damage_all');
+              if (dmgEffects.length > 0) {
+                for (const efx of dmgEffects) {
+                  let dmg = CombatEngine.calculateCardValue(handCard, pStats);
+                  // Account for enemy armor: each point of armor absorbs ~1 damage
+                  const armorReduction = Math.min(cell.card.armor || 0, Math.floor(dmg * 0.3));
+                  dmg = Math.max(1, dmg - armorReduction);
+                  totalDmg += dmg;
+                }
+              } else {
+                // Fallback: if no damage effects, skip tooltip (non-attack card)
+                _dragState.dmgTooltip.style.display = 'none';
+              }
+
+              const enemyHp = cell.card.hp || 0;
+              const enemyMaxHp = cell.card.maxHp || enemyHp;
+              const remainingHp = Math.max(0, enemyHp - totalDmg);
+              const willDie = remainingHp <= 0;
+
+              _dragState.dmgTooltip.innerHTML = `<span style="color:#f88;font-size:12px">⚔️</span> <span class="dmg-value">-${totalDmg}</span> <span style="color:#aaa">HP → </span><span class="${willDie ? 'hp-killed' : 'hp-remaining'}">${willDie ? '💀 KILL' : remainingHp + '/' + enemyMaxHp}</span>`;
+              _dragState.dmgTooltip.style.display = 'block';
+
+              // Position tooltip above the enemy card
+              const targetRect = nearestEl.getBoundingClientRect();
+              _dragState.dmgTooltip.style.left = `${targetRect.left - 20}px`;
+              _dragState.dmgTooltip.style.top = `${targetRect.top - 45}px`;
+            }
+          }
+        } else {
+          _dragState.dmgTooltip.style.display = 'none';
+        }
+
         // Arrow: origin at card center, direction toward finger
         const cx = _dragState.rect.left + _dragState.rect.width / 2;
         const cy = _dragState.rect.top - 10;
@@ -229,8 +280,12 @@ const Game = {
         _dragState.cardEl.style.transform = `translateY(${Math.min(dy, 15)}px)`;
         _dragState.cardEl.style.boxShadow = '0 0 8px rgba(201,168,76,0.4)';
 
-        document.querySelectorAll('.dungeon-card.targetable').forEach(el => el.classList.remove('targetable'));
+        document.querySelectorAll('.dungeon-card.targetable').forEach(el => {
+          el.classList.remove('targetable');
+          el.classList.remove('damage-preview-target');
+        });
         _dragState.arrow.style.display = 'none';
+        _dragState.dmgTooltip.style.display = 'none';
 
         const run = this.state.run;
         const card = run?.deck?.hand.find(c => c.uuid === _dragState.uuid);
@@ -250,8 +305,12 @@ const Game = {
         // Neutral — reset card, hide overlays
         _dragState.cardEl.style.transform = '';
         _dragState.cardEl.style.boxShadow = '';
-        document.querySelectorAll('.dungeon-card.targetable').forEach(el => el.classList.remove('targetable'));
+        document.querySelectorAll('.dungeon-card.targetable').forEach(el => {
+          el.classList.remove('targetable');
+          el.classList.remove('damage-preview-target');
+        });
         _dragState.arrow.style.display = 'none';
+        _dragState.dmgTooltip.style.display = 'none';
         _dragState.infoEl.style.display = 'none';
       }
     };
@@ -265,9 +324,13 @@ const Game = {
       // Reset card visual
       _dragState.cardEl.style.transform = '';
       _dragState.cardEl.style.boxShadow = '';
-      document.querySelectorAll('.dungeon-card.targetable').forEach(el => el.classList.remove('targetable'));
+      document.querySelectorAll('.dungeon-card.targetable').forEach(el => {
+        el.classList.remove('targetable');
+        el.classList.remove('damage-preview-target');
+      });
       _dragState.arrow.remove();
       _dragState.infoEl.remove();
+      _dragState.dmgTooltip?.remove();
 
       if (dy < -threshold) {
         // Dragged UP — play card on the enemy closest to finger position
